@@ -68,7 +68,7 @@ class MANGOS_DLL_SPEC PlayerbotClassAI
         virtual CombatManeuverReturns DoFirstCombatManeuver(Unit*);
         virtual CombatManeuverReturns DoNextCombatManeuver(Unit*);
         virtual bool CanPull() { return false; }
-        virtual bool Pull() { return false; }
+        virtual bool Pull(Unit& target) { return false; }
         virtual uint32 Neutralize(uint8 creatureType) { return 0; }
 
         // all non combat actions go here, ex buffs, heals, rezzes

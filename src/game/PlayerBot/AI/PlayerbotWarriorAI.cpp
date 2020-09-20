@@ -99,7 +99,7 @@ CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuver(Unit* pTarget)
                     // Clear their TEMP_WAIT_TANKAGGRO flag
                     m_ai.ClearGroupCombatOrder(PlayerbotAI::ORDERS_TEMP_WAIT_TANKAGGRO);
                     // Start attacking, force target on current target
-                    m_ai.Attack(m_ai.GetCurrentTarget());
+                    m_ai.Attack(pTarget);
 
                     // While everyone else is waiting 2 second, we need to build up aggro, so don't return
                 }
@@ -539,7 +539,7 @@ bool PlayerbotWarriorAI::CanPull()
 }
 
 // Match up with "CanPull()" above
-bool PlayerbotWarriorAI::Pull()
+bool PlayerbotWarriorAI::Pull(Unit& target)
 {
     // In Classic, Warriors had 3 different spells for shooting with ranged weapons
     // So we need to determine which one to use
@@ -576,31 +576,28 @@ bool PlayerbotWarriorAI::Pull()
         return false;
     }
 
-    if (m_bot.GetDistance(m_ai.GetCurrentTarget(), true, DIST_CALC_COMBAT_REACH_WITH_MELEE) > ATTACK_DISTANCE)
+    if (m_bot.GetDistance(&target, true, DIST_CALC_COMBAT_REACH_WITH_MELEE) > ATTACK_DISTANCE)
     {
-        if (!m_ai.In_Reach(m_ai.GetCurrentTarget(), SHOOT))
+        if (!m_ai.In_Reach(&target, SHOOT))
         {
             m_ai.TellMaster("Can't pull: I'm out of range.");
             return false;
         }
-        if (!m_bot.IsWithinLOSInMap(m_ai.GetCurrentTarget()))
+        if (!m_bot.IsWithinLOSInMap(&target))
         {
             m_ai.TellMaster("Can't pull: target is out of sight.");
             return false;
         }
 
         // shoot at the target
-        m_ai.FaceTarget(m_ai.GetCurrentTarget());
-        m_bot.CastSpell(m_ai.GetCurrentTarget(), SHOOT, TRIGGERED_OLD_TRIGGERED);
-        m_ai.TellMaster("I'm PULLING %s.", m_ai.GetCurrentTarget()->GetName());
-        return true;
+        m_ai.FaceTarget(&target);
+        m_bot.CastSpell(&target, SHOOT, TRIGGERED_OLD_TRIGGERED);
+        m_ai.TellMaster("I'm PULLING %s.", target.GetName());
     }
     else // target is in melee range
     {
-        m_ai.Attack(m_ai.GetCurrentTarget());
-        return true;
+        m_ai.Attack(&target);
     }
 
-    m_ai.TellMaster("I cannot pull my target for an unkown reason.");
-        return false;
+    return true;
 }

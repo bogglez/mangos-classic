@@ -97,7 +97,7 @@ CombatManeuverReturns PlayerbotDruidAI::DoFirstCombatManeuver(Unit* pTarget)
                     // Clear their TEMP_WAIT_TANKAGGRO flag
                     m_ai.ClearGroupCombatOrder(PlayerbotAI::ORDERS_TEMP_WAIT_TANKAGGRO);
                     // Start attacking, force target on current target
-                    m_ai.Attack(m_ai.GetCurrentTarget());
+                    m_ai.Attack(pTarget);
 
                     // While everyone else is waiting 2 second, we need to build up aggro, so don't return
                 }
@@ -719,9 +719,9 @@ bool PlayerbotDruidAI::CanPull()
 }
 
 // Match up with "CanPull()" above
-bool PlayerbotDruidAI::Pull()
+bool PlayerbotDruidAI::Pull(Unit& target)
 {
-    return BEAR_FORM > 0 && (CastSpell(FAERIE_FIRE_FERAL) & RETURN_CONTINUE);
+    return BEAR_FORM > 0 && (CastSpell(FAERIE_FIRE_FERAL, &target) & RETURN_CONTINUE);
 }
 
 bool PlayerbotDruidAI::CastHoTOnTank()

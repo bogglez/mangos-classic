@@ -90,7 +90,7 @@ class MANGOS_DLL_SPEC PlayerbotWarriorAI : PlayerbotClassAI
         CombatManeuverReturns DoFirstCombatManeuver(Unit* pTarget) override;
         CombatManeuverReturns DoNextCombatManeuver(Unit* pTarget) override;
         bool CanPull() override;
-        bool Pull() override;
+        bool Pull(Unit& target) override;
 
         // all non combat actions go here, ex buffs, heals, rezzes
         void DoNonCombatActions() override;

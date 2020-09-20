@@ -2675,11 +2675,10 @@ bool PlayerbotAI::CastPull()
 {
     if (!m_bot) return false;
     if (!GetClassAI()) return false;
-    if (!GetCurrentTarget()) return false;
-
+    if (!m_targetCombat) return false;
     if (!IsTank()) return false;
 
-    return ((PlayerbotClassAI*)GetClassAI())->Pull();
+    return GetClassAI()->Pull(*m_targetCombat);
 }
 
 bool PlayerbotAI::GroupTankHoldsAggro()
@@ -6960,7 +6959,7 @@ void PlayerbotAI::_HandleCommandPull(std::string& text, Player& fromPlayer)
         return;
     }
     GetCombatTarget(thingToAttack);
-    if (!GetCurrentTarget())
+    if (!m_targetCombat)
     {
         SendWhisper("Failed to set target, cause unknown.", fromPlayer);
         return;

@@ -490,7 +490,6 @@ class MANGOS_DLL_SPEC PlayerbotAI
         void Attack(Unit* forcedTarget = nullptr);
         void GetCombatTarget(Unit* forcedTarget = 0);
         void GetDuelTarget(Unit* forcedTarget);
-        Unit* GetCurrentTarget() { return m_targetCombat; };
         void DoNextCombatManeuver();
         void DoCombatMovement();
         void SetIgnoreUpdateTime(uint8 t = 0) { m_ignoreAIUpdatesUntilTime = time(nullptr) + t; };

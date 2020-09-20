@@ -96,7 +96,7 @@ CombatManeuverReturns PlayerbotPaladinAI::DoFirstCombatManeuver(Unit* pTarget)
                     // Clear their TEMP_WAIT_TANKAGGRO flag
                     m_ai.ClearGroupCombatOrder(PlayerbotAI::ORDERS_TEMP_WAIT_TANKAGGRO);
                     // Start attacking, force target on current target
-                    m_ai.Attack(m_ai.GetCurrentTarget());
+                    m_ai.Attack(pTarget);
 
                     // While everyone else is waiting 2 second, we need to build up aggro, so don't return
                 }
@@ -750,9 +750,9 @@ bool PlayerbotPaladinAI::CanPull()
 }
 
 // Match up with "CanPull()" above
-bool PlayerbotPaladinAI::Pull()
+bool PlayerbotPaladinAI::Pull(Unit& target)
 {
-    return EXORCISM > 0 && m_ai.CastSpell(EXORCISM) == SPELL_CAST_OK;
+    return EXORCISM > 0 && m_ai.CastSpell(EXORCISM, target) == SPELL_CAST_OK;
 }
 
 bool PlayerbotPaladinAI::CastHoTOnTank()
