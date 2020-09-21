@@ -453,7 +453,6 @@ class MANGOS_DLL_SPEC PlayerbotAI
         void TellMaster(const std::string& text) const;
         void TellMaster(const char* fmt, ...) const;
         void SendWhisper(const std::string& text, Player& player) const;
-        SpellCastResult CastSpell(const char* args);
         SpellCastResult CastSpell(uint32 spellId);
         SpellCastResult CastSpell(uint32 spellId, Unit& target);
         SpellCastResult CheckBotCast(const SpellEntry* sInfo);

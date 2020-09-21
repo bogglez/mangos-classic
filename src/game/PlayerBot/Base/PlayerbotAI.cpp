@@ -4280,12 +4280,6 @@ SpellCastResult PlayerbotAI::CheckBotCast(const SpellEntry* sInfo)
     return SPELL_FAILED_ERROR;
 }
 
-SpellCastResult PlayerbotAI::CastSpell(const char* args)
-{
-    uint32 spellId = getSpellId(args);
-    return (spellId) ? CastSpell(spellId) : SPELL_NOT_FOUND;
-}
-
 SpellCastResult PlayerbotAI::CastSpell(uint32 spellId, Unit& target)
 {
     ObjectGuid oldSel = m_bot->GetSelectionGuid();
