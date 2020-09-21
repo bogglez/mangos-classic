@@ -4282,15 +4282,6 @@ SpellCastResult PlayerbotAI::CheckBotCast(const SpellEntry* sInfo)
 
 SpellCastResult PlayerbotAI::CastSpell(uint32 spellId, Unit& target)
 {
-    ObjectGuid oldSel = m_bot->GetSelectionGuid();
-    m_bot->SetSelectionGuid(target.GetObjectGuid());
-    SpellCastResult rv = CastSpell(spellId);
-    m_bot->SetSelectionGuid(oldSel);
-    return rv;
-}
-
-SpellCastResult PlayerbotAI::CastSpell(uint32 spellId)
-{
     // some AIs don't check if the bot doesn't have spell before using it
     // so just return false when this happens
     if (spellId == 0)
@@ -4319,24 +4310,18 @@ SpellCastResult PlayerbotAI::CastSpell(uint32 spellId)
     if (res != SPELL_CAST_OK)
         return res;
 
-    // set target
-    ObjectGuid targetGUID = m_bot->GetSelectionGuid();
-    Unit* pTarget = ObjectAccessor::GetUnit(*m_bot, targetGUID);
-
-    if (!pTarget)
-        pTarget = m_bot;
-
+    Unit* smartcastTarget = &target;
     if (IsPositiveSpell(spellId))
     {
-        if (pTarget && m_bot->CanAttack(pTarget))
-            pTarget = m_bot;
+        if (m_bot->CanAttack(&target))
+            smartcastTarget = m_bot;
     }
     else
     {
-        if (pTarget && m_bot->CanAssist(pTarget))    // Can't cast hostile spell on friendly unit
+        if (m_bot->CanAssist(&target))    // Can't cast hostile spell on friendly unit
             return SPELL_FAILED_TARGET_FRIENDLY;
 
-        m_bot->SetInFront(pTarget);
+        m_bot->SetInFront(&target);
     }
 
     float CastTime = 0.0f;
@@ -4412,21 +4397,26 @@ SpellCastResult PlayerbotAI::CastSpell(uint32 spellId)
     else
     {
         // Check spell range
-        if (!In_Range(*pTarget, spellId))
+        if (!In_Range(target, spellId))
             return SPELL_FAILED_OUT_OF_RANGE;
 
         // Check line of sight
-        if (!m_bot->IsWithinLOSInMap(pTarget))
+        if (!m_bot->IsWithinLOSInMap(&target))
             return SPELL_FAILED_LINE_OF_SIGHT;
 
         // Some casting times are negative so set ignore update time to 1 sec to avoid stucking the bot AI
         SetIgnoreUpdateTime(std::max(CastTime, 0.0f) + 1);
 
         if (IsAutoRepeatRangedSpell(pSpellInfo))
-            return m_bot->CastSpell(pTarget, pSpellInfo, TRIGGERED_OLD_TRIGGERED); // cast triggered spell
+            return m_bot->CastSpell(&target, pSpellInfo, TRIGGERED_OLD_TRIGGERED); // cast triggered spell
         else
-            return m_bot->CastSpell(pTarget, pSpellInfo, TRIGGERED_NONE);          // uni-cast spell
+            return m_bot->CastSpell(&target, pSpellInfo, TRIGGERED_NONE);          // uni-cast spell
     }
+}
+
+SpellCastResult PlayerbotAI::CastSpell(uint32 spellId)
+{
+    return CastSpell(spellId, *m_bot);
 }
 
 SpellCastResult PlayerbotAI::CastPetSpell(uint32 spellId, Unit& target)
