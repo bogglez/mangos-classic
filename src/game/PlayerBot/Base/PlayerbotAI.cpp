@@ -167,13 +167,10 @@ bool PlayerbotAI::CanReachWithSpellAttack(Unit* target)
     return inrange;
 }
 
-bool PlayerbotAI::In_Reach(Unit* Target, uint32 spellId)
+bool PlayerbotAI::In_Reach(Unit& Target, uint32 spellId)
 {
-    if (!Target)
-        return false;
-
     float range = 0;
-    float dist = m_bot->GetDistance(Target, true, DIST_CALC_COMBAT_REACH_WITH_MELEE);
+    float dist = m_bot->GetDistance(&Target, true, DIST_CALC_COMBAT_REACH_WITH_MELEE);
     SpellRanges::iterator it;
     it = m_spellRangeMap.find(spellId);
     (it != m_spellRangeMap.end()) ? range = it->second : range = 0;
@@ -2413,9 +2410,10 @@ void PlayerbotAI::DoNextCombatManeuver()
     }
 
     // new target -> DoFirstCombatManeuver
+    assert(m_targetCombat);
     if (m_targetChanged)
     {
-        switch (GetClassAI()->DoFirstCombatManeuver(m_targetCombat))
+        switch (GetClassAI()->DoFirstCombatManeuver(*m_targetCombat))
         {
             case RETURN_CONTINUE: // true needed for rogue stealth attack
                 break;
@@ -2436,7 +2434,7 @@ void PlayerbotAI::DoNextCombatManeuver()
     if (!m_targetChanged)
     {
         // if m_targetChanged = false
-        switch (GetClassAI()->DoNextCombatManeuver(m_targetCombat))
+        switch (GetClassAI()->DoNextCombatManeuver(*m_targetCombat))
         {
             case RETURN_NO_ACTION_UNKNOWN:
             case RETURN_NO_ACTION_OK:
@@ -2529,7 +2527,7 @@ Player* PlayerbotAI::GetGroupTank()
             Player* groupMember = sObjectMgr.GetPlayer(itr->guid);
             if (groupMember)
             {
-                if (!groupMember->GetPlayerbotAI() && m_bot->GetPlayerbotAI()->GetClassAI()->GetTargetJob(groupMember) & JOB_TANK)
+                if (!groupMember->GetPlayerbotAI() && m_bot->GetPlayerbotAI()->GetClassAI()->GetTargetJob(*groupMember) & JOB_TANK)
                     return groupMember;
                 else if (groupMember->GetPlayerbotAI() && groupMember->GetPlayerbotAI()->IsTank())
                     return groupMember;
@@ -4234,7 +4232,7 @@ bool PlayerbotAI::canObeyCommandFrom(const Player& player) const
     return player.GetSession()->GetAccountId() == GetMaster()->GetSession()->GetAccountId();
 }
 
-bool PlayerbotAI::In_Range(Unit* Target, uint32 spellId)
+bool PlayerbotAI::In_Range(Unit& target, uint32 spellId)
 {
     const SpellEntry* const pSpellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellId);
     if (!pSpellInfo)
@@ -4250,7 +4248,7 @@ bool PlayerbotAI::In_Range(Unit* Target, uint32 spellId)
         return true;
 
     //Unit is out of range of this spell
-    if (!m_bot->IsInRange(Target, TempRange->minRange, TempRange->maxRange))
+    if (!m_bot->IsInRange(&target, TempRange->minRange, TempRange->maxRange))
         return false;
 
     return true;
@@ -4420,7 +4418,7 @@ SpellCastResult PlayerbotAI::CastSpell(uint32 spellId)
     else
     {
         // Check spell range
-        if (!In_Range(pTarget, spellId))
+        if (!In_Range(*pTarget, spellId))
             return SPELL_FAILED_OUT_OF_RANGE;
 
         // Check line of sight
@@ -4437,7 +4435,7 @@ SpellCastResult PlayerbotAI::CastSpell(uint32 spellId)
     }
 }
 
-SpellCastResult PlayerbotAI::CastPetSpell(uint32 spellId, Unit* target)
+SpellCastResult PlayerbotAI::CastPetSpell(uint32 spellId, Unit& target)
 {
     if (spellId == 0)
         return SPELL_FAILED_NOT_KNOWN;
@@ -4456,31 +4454,22 @@ SpellCastResult PlayerbotAI::CastPetSpell(uint32 spellId, Unit* target)
     if (!pet->IsSpellReady(*pSpellInfo))
         return SPELL_FAILED_NOT_READY;
 
-    // set target
-    Unit* pTarget;
-    if (!target)
-    {
-        ObjectGuid targetGUID = m_bot->GetSelectionGuid();
-        pTarget = ObjectAccessor::GetUnit(*m_bot, targetGUID);
-    }
-    else
-        pTarget = target;
-
+    Unit* smartcastTarget = &target;
     if (IsPositiveSpell(spellId))
     {
-        if (pTarget && m_bot->CanAttack(pTarget))
-            pTarget = m_bot;
+        if (m_bot->CanAttack(&target))
+            smartcastTarget = m_bot;
     }
     else
     {
-        if (pTarget && m_bot->CanAssist(pTarget))    // Can cast hostile spell on friendly unit
+        if (m_bot->CanAssist(&target))    // Can cast hostile spell on friendly unit
             return SPELL_FAILED_TARGET_FRIENDLY;
 
-        if (!pet->isInFrontInMap(pTarget, 10)) // distance probably should be calculated
-            pet->SetFacingTo(pet->GetAngle(pTarget));
+        if (!pet->isInFrontInMap(&target, 10)) // distance probably should be calculated
+            pet->SetFacingTo(pet->GetAngle(&target));
     }
 
-    pet->CastSpell(pTarget, pSpellInfo, TRIGGERED_NONE);
+    pet->CastSpell(&target, pSpellInfo, TRIGGERED_NONE);
 
     Spell* const pSpell = pet->FindCurrentSpellBySpellId(spellId);
     if (!pSpell)
@@ -4490,13 +4479,13 @@ SpellCastResult PlayerbotAI::CastPetSpell(uint32 spellId, Unit* target)
 }
 
 // Perform sanity checks and cast spell
-SpellCastResult PlayerbotAI::Buff(uint32 spellId, Unit* target, void (*beforeCast)(Player*))
+SpellCastResult PlayerbotAI::Buff(uint32 spellId, Unit& target, void (*beforeCast)(Player&))
 {
     if (spellId == 0)
         return SPELL_FAILED_NOT_KNOWN;
 
     // Target already has aura from spellId, skip for speed. May need to add exceptions
-    if (target->HasAura(spellId))
+    if (target.HasAura(spellId))
         return SPELL_FAILED_AURA_BOUNCED;
 
     SpellEntry const* spellProto = sSpellTemplate.LookupEntry<SpellEntry>(spellId);
@@ -4504,11 +4493,8 @@ SpellCastResult PlayerbotAI::Buff(uint32 spellId, Unit* target, void (*beforeCas
     if (!spellProto)
         return SPELL_NOT_FOUND;
 
-    if (!target)
-        return SPELL_FAILED_BAD_IMPLICIT_TARGETS;
-
     // Select appropriate spell rank for target's level
-    spellProto = sSpellMgr.SelectAuraRankForLevel(spellProto, target->getLevel());
+    spellProto = sSpellMgr.SelectAuraRankForLevel(spellProto, target.getLevel());
     if (!spellProto)
         return SPELL_NOT_FOUND;
 
@@ -4520,8 +4506,8 @@ SpellCastResult PlayerbotAI::Buff(uint32 spellId, Unit* target, void (*beforeCas
             break;
 
         bool sameOrBetterAuraFound = false;
-        int32 bonus = m_bot->CalculateSpellEffectValue(target, spellProto, SpellEffectIndex(i));
-        Unit::AuraList const& auras = target->GetAurasByType(AuraType(spellProto->EffectApplyAuraName[i]));
+        int32 bonus = m_bot->CalculateSpellEffectValue(&target, spellProto, SpellEffectIndex(i));
+        Unit::AuraList const& auras = target.GetAurasByType(AuraType(spellProto->EffectApplyAuraName[i]));
         for (Unit::AuraList::const_iterator it = auras.begin(); it != auras.end(); ++it)
             if ((*it)->GetModifier()->m_miscvalue == spellProto->EffectMiscValue[i] && (*it)->GetModifier()->m_amount >= bonus)
             {
@@ -4536,9 +4522,9 @@ SpellCastResult PlayerbotAI::Buff(uint32 spellId, Unit* target, void (*beforeCas
 
     // Druids may need to shapeshift before casting
     if (beforeCast)
-        (*beforeCast)(m_bot);
+        (*beforeCast)(*m_bot);
 
-    return CastSpell(spellProto->Id, *target);
+    return CastSpell(spellProto->Id, target);
 }
 
 // Can be used for personal buffs like Mage Armor and Inner Fire
@@ -7565,7 +7551,7 @@ void PlayerbotAI::_HandleCommandPet(std::string& text, Player& fromPlayer)
 
             ObjectGuid castOnGuid = fromPlayer.GetSelectionGuid();
             Unit* pTarget = ObjectAccessor::GetUnit(*m_bot, castOnGuid);
-            CastPetSpell(spellId, pTarget);
+            CastPetSpell(spellId, *pTarget);
         }
     }
     else if (ExtractCommand("toggle", text))

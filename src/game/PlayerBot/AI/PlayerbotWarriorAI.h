@@ -87,8 +87,8 @@ class MANGOS_DLL_SPEC PlayerbotWarriorAI : PlayerbotClassAI
         virtual ~PlayerbotWarriorAI();
 
         // all combat actions go here
-        CombatManeuverReturns DoFirstCombatManeuver(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuver(Unit* pTarget) override;
+        CombatManeuverReturns DoFirstCombatManeuver(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuver(Unit& target) override;
         bool CanPull() override;
         bool Pull(Unit& target) override;
 
@@ -99,10 +99,10 @@ class MANGOS_DLL_SPEC PlayerbotWarriorAI : PlayerbotClassAI
         void CheckShouts();
 
     private:
-        CombatManeuverReturns DoFirstCombatManeuverPVE(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuverPVE(Unit* pTarget) override;
-        CombatManeuverReturns DoFirstCombatManeuverPVP(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuverPVP(Unit* pTarget) override;
+        CombatManeuverReturns DoFirstCombatManeuverPVE(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuverPVE(Unit& target) override;
+        CombatManeuverReturns DoFirstCombatManeuverPVP(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuverPVP(Unit& target) override;
 
         // ARMS
         uint32 BATTLE_STANCE,

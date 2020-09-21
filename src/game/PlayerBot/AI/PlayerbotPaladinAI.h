@@ -72,8 +72,8 @@ class MANGOS_DLL_SPEC PlayerbotPaladinAI : PlayerbotClassAI
         virtual ~PlayerbotPaladinAI();
 
         // all combat actions go here
-        CombatManeuverReturns DoFirstCombatManeuver(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuver(Unit* pTarget) override;
+        CombatManeuverReturns DoFirstCombatManeuver(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuver(Unit& target) override;
         bool CanPull() override;
         bool Pull(Unit& target) override;
 
@@ -84,26 +84,26 @@ class MANGOS_DLL_SPEC PlayerbotPaladinAI : PlayerbotClassAI
         bool CastHoTOnTank();
 
     private:
-        CombatManeuverReturns DoFirstCombatManeuverPVE(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuverPVE(Unit* pTarget) override;
-        CombatManeuverReturns DoFirstCombatManeuverPVP(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuverPVP(Unit* pTarget) override;
+        CombatManeuverReturns DoFirstCombatManeuverPVE(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuverPVE(Unit& target) override;
+        CombatManeuverReturns DoFirstCombatManeuverPVP(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuverPVP(Unit& target) override;
 
         // Heals the target based off its hps
-        CombatManeuverReturns HealPlayer(Player* target) override;
+        CombatManeuverReturns HealPlayer(Player& target) override;
         // Resurrects the target
-        CombatManeuverReturns ResurrectPlayer(Player* target) override;
+        CombatManeuverReturns ResurrectPlayer(Player& target) override;
         // Dispel disease or negative magic effects from an internally selected target
-        CombatManeuverReturns DispelPlayer(Player* target = nullptr);
+        CombatManeuverReturns FindAndDispelPlayer() override;
 
         //Changes aura according to spec/orders
         void CheckAuras();
         //Changes Seal according to spec
-        bool CheckSealAndJudgement(Unit* target);
+        bool CheckSealAndJudgement(Unit& target);
         uint32 m_CurrentSeal;
         uint32 m_CurrentJudgement;
 
-        static bool BuffHelper(PlayerbotAI* ai, uint32 spellId, Unit* target);
+        static bool BuffHelper(PlayerbotAI* ai, uint32 spellId, Unit& target);
 
         // make this public so the static function can access it. Either that or make an accessor function for each
     public:

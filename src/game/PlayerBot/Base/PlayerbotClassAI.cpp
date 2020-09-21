@@ -37,13 +37,13 @@ PlayerbotClassAI::PlayerbotClassAI(Player& master, Player& bot, PlayerbotAI& ai)
 }
 PlayerbotClassAI::~PlayerbotClassAI() {}
 
-CombatManeuverReturns PlayerbotClassAI::DoFirstCombatManeuver(Unit*) { return RETURN_NO_ACTION_OK; }
-CombatManeuverReturns PlayerbotClassAI::DoNextCombatManeuver(Unit*) { return RETURN_NO_ACTION_OK; }
+CombatManeuverReturns PlayerbotClassAI::DoFirstCombatManeuver(Unit& target) { return RETURN_NO_ACTION_OK; }
+CombatManeuverReturns PlayerbotClassAI::DoNextCombatManeuver(Unit& target) { return RETURN_NO_ACTION_OK; }
 
-CombatManeuverReturns PlayerbotClassAI::DoFirstCombatManeuverPVE(Unit*) { return RETURN_NO_ACTION_OK; }
-CombatManeuverReturns PlayerbotClassAI::DoNextCombatManeuverPVE(Unit*) { return RETURN_NO_ACTION_OK; }
-CombatManeuverReturns PlayerbotClassAI::DoFirstCombatManeuverPVP(Unit*) { return RETURN_NO_ACTION_OK; }
-CombatManeuverReturns PlayerbotClassAI::DoNextCombatManeuverPVP(Unit*) { return RETURN_NO_ACTION_OK; }
+CombatManeuverReturns PlayerbotClassAI::DoFirstCombatManeuverPVE(Unit& target) { return RETURN_NO_ACTION_OK; }
+CombatManeuverReturns PlayerbotClassAI::DoNextCombatManeuverPVE(Unit& target) { return RETURN_NO_ACTION_OK; }
+CombatManeuverReturns PlayerbotClassAI::DoFirstCombatManeuverPVP(Unit& target) { return RETURN_NO_ACTION_OK; }
+CombatManeuverReturns PlayerbotClassAI::DoNextCombatManeuverPVP(Unit& target) { return RETURN_NO_ACTION_OK; }
 
 void PlayerbotClassAI::DoNonCombatActions()
 {
@@ -93,27 +93,29 @@ bool PlayerbotClassAI::CastHoTOnTank()
     return false;
 }
 
-CombatManeuverReturns PlayerbotClassAI::HealPlayer(Player* target)
+CombatManeuverReturns PlayerbotClassAI::HealPlayer(Player& target)
 {
-    if (!target) return RETURN_NO_ACTION_INVALIDTARGET;
-    if (target->IsInDuel() || !target->IsAlive()) return RETURN_NO_ACTION_INVALIDTARGET;
+    if (target.IsInDuel() || !target.IsAlive()) return RETURN_NO_ACTION_INVALIDTARGET;
 
     return RETURN_NO_ACTION_OK;
 }
 
-CombatManeuverReturns PlayerbotClassAI::ResurrectPlayer(Player* target)
+CombatManeuverReturns PlayerbotClassAI::ResurrectPlayer(Player& target)
 {
-    if (!target) return RETURN_NO_ACTION_INVALIDTARGET;
-    if (target->IsAlive()) return RETURN_NO_ACTION_INVALIDTARGET;
+    if (target.IsAlive()) return RETURN_NO_ACTION_INVALIDTARGET;
 
     return RETURN_NO_ACTION_OK;
 }
 
-CombatManeuverReturns PlayerbotClassAI::DispelPlayer(Player* target)
+CombatManeuverReturns PlayerbotClassAI::FindAndDispelPlayer()
 {
-    if (!target) return RETURN_NO_ACTION_INVALIDTARGET;
-    if (target->IsInDuel() || !target->IsAlive()) return RETURN_NO_ACTION_INVALIDTARGET;
+    return RETURN_NO_ACTION_OK;
+}
 
+CombatManeuverReturns PlayerbotClassAI::DispelPlayer(Player& target)
+{
+    if (target.IsInDuel() || !target.IsAlive())
+        return RETURN_NO_ACTION_INVALIDTARGET;
     return RETURN_NO_ACTION_OK;
 }
 
@@ -130,7 +132,7 @@ CombatManeuverReturns PlayerbotClassAI::DispelPlayer(Player* target)
  * If false is returned, the bot is expected to perform a buff check for the single target version of the group buff.
  *
  */
-CombatManeuverReturns PlayerbotClassAI::Buff(bool (*BuffHelper)(PlayerbotAI*, uint32, Unit*), uint32 spellId, uint32 type, bool mustBeOOC)
+CombatManeuverReturns PlayerbotClassAI::Buff(bool (*BuffHelper)(PlayerbotAI*, uint32, Unit&), uint32 spellId, uint32 type, bool mustBeOOC)
 {
     if (!m_bot.IsAlive() || m_bot.IsInDuel()) return RETURN_NO_ACTION_ERROR;
     if (mustBeOOC && m_bot.IsInCombat()) return RETURN_NO_ACTION_ERROR;
@@ -147,12 +149,12 @@ CombatManeuverReturns PlayerbotClassAI::Buff(bool (*BuffHelper)(PlayerbotAI*, ui
             if (!member || !member->IsAlive() || member->IsInDuel())
                 continue;
             // Guess the job of current member
-            JOB_TYPE job = GetTargetJob(member);
+            JOB_TYPE job = GetTargetJob(*member);
             // If job matches requested job type or (mana target is requested and member is mana user (or shapeshift druid)): buff it
             if (job & type ||
                 (type & JOB_MANAONLY && (member->getClass() == CLASS_DRUID || member->GetPowerType() == POWER_MANA)))
             {
-                if (BuffHelper(&m_ai, spellId, member))
+                if (BuffHelper(&m_ai, spellId, *member))
                     return RETURN_CONTINUE;
             }
         }
@@ -161,12 +163,12 @@ CombatManeuverReturns PlayerbotClassAI::Buff(bool (*BuffHelper)(PlayerbotAI*, ui
     {
         // Buff master if he/she is eligible
         if (!m_master.IsInDuel()
-            && (GetTargetJob(&m_master) & type
+            && (GetTargetJob(m_master) & type
                 || (type & JOB_MANAONLY && (m_master.getClass() == CLASS_DRUID || m_master.GetPowerType() == POWER_MANA))))
-            if (BuffHelper(&m_ai, spellId, &m_master))
+            if (BuffHelper(&m_ai, spellId, m_master))
                 return RETURN_CONTINUE;
         // Do not check job or power type - any buff you have is always useful to self
-        if (BuffHelper(&m_ai, spellId, &m_bot))
+        if (BuffHelper(&m_ai, spellId, m_bot))
             return RETURN_CONTINUE;
     }
 
@@ -233,7 +235,7 @@ bool PlayerbotClassAI::FindTargetAndHeal()
     if (!targetToHeal)
         targetToHeal = GetHealTarget(type);
 
-    if (m_ai.GetClassAI()->HealPlayer(targetToHeal) & RETURN_CONTINUE)
+    if (targetToHeal && m_ai.GetClassAI()->HealPlayer(*targetToHeal) & RETURN_CONTINUE)
         return true;
 
     return false;   
@@ -269,7 +271,7 @@ Player* PlayerbotClassAI::GetHealTarget(JOB_TYPE type, bool onlyPickFromSameGrou
             if (!groupMember || !groupMember->IsAlive() || groupMember->IsInDuel()
                 || (!m_bot.GetGroup()->SameSubGroup(&m_bot, groupMember) && onlyPickFromSameGroup))
                 continue;
-            JOB_TYPE job = GetTargetJob(groupMember);
+            JOB_TYPE job = GetTargetJob(*groupMember);
             if (job & type)
             {
                 uiHealthPercentage = int(groupMember->GetMaxHealth() != 0 ? groupMember->GetHealth() * 100 / groupMember->GetMaxHealth() : 0);
@@ -279,11 +281,11 @@ Player* PlayerbotClassAI::GetHealTarget(JOB_TYPE type, bool onlyPickFromSameGrou
     }
     else
     {
-        targets.push_back(heal_priority(&m_bot, m_bot.GetHealthPercent(), GetTargetJob(&m_bot)));
+        targets.push_back(heal_priority(&m_bot, m_bot.GetHealthPercent(), GetTargetJob(m_bot)));
         if (!m_master.IsInDuel())
         {
             uiHealthPercentage = int(m_master.GetMaxHealth() != 0 ? m_master.GetHealth() * 100 / m_master.GetMaxHealth() : 0);
-            targets.push_back(heal_priority(&m_master, uiHealthPercentage, GetTargetJob(&m_master)));
+            targets.push_back(heal_priority(&m_master, uiHealthPercentage, GetTargetJob(m_master)));
         }
     }
 
@@ -396,7 +398,7 @@ Player* PlayerbotClassAI::GetHealTarget(JOB_TYPE type, bool onlyPickFromSameGrou
  *
  * return true if bot has found a proper destination, false if none was found
  */
-bool PlayerbotClassAI::FleeFromAoEIfCan(uint32 spellId, Unit* pTarget)
+bool PlayerbotClassAI::FleeFromAoEIfCan(uint32 spellId, Unit& target)
 {
     if (!spellId) return false;
 
@@ -409,7 +411,7 @@ bool PlayerbotClassAI::FleeFromAoEIfCan(uint32 spellId, Unit* pTarget)
     // Step 2: Get current bot position to move from it
     float curr_x, curr_y, curr_z;
     m_bot.GetPosition(curr_x, curr_y, curr_z);
-    return FleeFromPointIfCan(radius, pTarget, curr_x, curr_y, curr_z);
+    return FleeFromPointIfCan(radius, target, curr_x, curr_y, curr_z);
 }
 
 /**
@@ -421,7 +423,7 @@ bool PlayerbotClassAI::FleeFromAoEIfCan(uint32 spellId, Unit* pTarget)
  *
  * return true if bot has found a proper destination, false if none was found
  */
-bool PlayerbotClassAI::FleeFromTrapGOIfCan(uint32 goEntry, Unit* pTarget)
+bool PlayerbotClassAI::FleeFromTrapGOIfCan(uint32 goEntry, Unit& target)
 {
     if (!goEntry) return false;
 
@@ -443,7 +445,7 @@ bool PlayerbotClassAI::FleeFromTrapGOIfCan(uint32 goEntry, Unit* pTarget)
     if (!pGo)
         return false;
 
-    return FleeFromPointIfCan(trapRadius, pTarget, pGo->GetPositionX(), pGo->GetPositionY(), pGo->GetPositionZ());
+    return FleeFromPointIfCan(trapRadius, target, pGo->GetPositionX(), pGo->GetPositionY(), pGo->GetPositionZ());
 }
 
 /**
@@ -456,7 +458,7 @@ bool PlayerbotClassAI::FleeFromTrapGOIfCan(uint32 goEntry, Unit* pTarget)
  *
  * return true if bot has found a proper destination, false if none was found
  */
-bool PlayerbotClassAI::FleeFromNpcWithAuraIfCan(uint32 NpcEntry, uint32 spellId, Unit* pTarget)
+bool PlayerbotClassAI::FleeFromNpcWithAuraIfCan(uint32 NpcEntry, uint32 spellId, Unit& target)
 {
     if (!NpcEntry) return false;
     if (!spellId) return false;
@@ -482,7 +484,7 @@ bool PlayerbotClassAI::FleeFromNpcWithAuraIfCan(uint32 NpcEntry, uint32 spellId,
         return false;
 
     // Force to flee on a direction opposite to the position of the creature (fleeing from it, not only avoiding it)
-    return FleeFromPointIfCan(radius, pTarget, pCreature->GetPositionX(), pCreature->GetPositionY(), pCreature->GetPositionZ(), M_PI_F);
+    return FleeFromPointIfCan(radius, target, pCreature->GetPositionX(), pCreature->GetPositionY(), pCreature->GetPositionZ(), M_PI_F);
 }
 
 /**
@@ -496,24 +498,16 @@ bool PlayerbotClassAI::FleeFromNpcWithAuraIfCan(uint32 NpcEntry, uint32 spellId,
  *
  * return true if bot has found a proper destination, false if none was found
  */
-bool PlayerbotClassAI::FleeFromPointIfCan(uint32 radius, Unit* pTarget, float x0, float y0, float z0, float forcedAngle /* = 0.0f */)
+bool PlayerbotClassAI::FleeFromPointIfCan(uint32 radius, Unit& target, float x0, float y0, float z0, float forcedAngle /* = 0.0f */)
 {
     // Get relative position to current target
     // the bot will try to move on a tangential axis from it
     float dist_from_target, angle_to_target;
-    if (pTarget)
-    {
-        dist_from_target = pTarget->GetDistance(&m_bot);
-        if (dist_from_target > 0.2f)
-            angle_to_target = pTarget->GetAngle(&m_bot);
-        else
-            angle_to_target = frand(0, 2 * M_PI_F);
-    }
+    dist_from_target = target.GetDistance(&m_bot);
+    if (dist_from_target > 0.2f)
+        angle_to_target = target.GetAngle(&m_bot);
     else
-    {
-        dist_from_target = 0.0f;
         angle_to_target = frand(0, 2 * M_PI_F);
-    }
 
     // Find coords to move to
     // The bot will move for a distance equal to the spell radius + 1 yard for more safety
@@ -590,7 +584,7 @@ Player* PlayerbotClassAI::GetDispelTarget(DispelType dispelType, JOB_TYPE type, 
             Player* groupMember = sObjectMgr.GetPlayer(itr->guid);
             if (!groupMember || !groupMember->IsAlive())
                 continue;
-            JOB_TYPE job = GetTargetJob(groupMember);
+            JOB_TYPE job = GetTargetJob(*groupMember);
             if (job & type)
             {
                 uint32 dispelMask  = GetDispellMask(dispelType);
@@ -635,7 +629,7 @@ Player* PlayerbotClassAI::GetResurrectionTarget(JOB_TYPE type, bool bMustBeOOC)
             Player* groupMember = sObjectMgr.GetPlayer(itr->guid);
             if (!groupMember || groupMember->IsAlive())
                 continue;
-            JOB_TYPE job = GetTargetJob(groupMember);
+            JOB_TYPE job = GetTargetJob(*groupMember);
             if (job & type)
                 targets.push_back(heal_priority(groupMember, 0, job));
         }
@@ -652,76 +646,73 @@ Player* PlayerbotClassAI::GetResurrectionTarget(JOB_TYPE type, bool bMustBeOOC)
     return nullptr;
 }
 
-JOB_TYPE PlayerbotClassAI::GetBotJob(Player* target)
+JOB_TYPE PlayerbotClassAI::GetBotJob(Player& target)
 {
-        if (target->GetPlayerbotAI()->IsMainHealer())
+        if (target.GetPlayerbotAI()->IsMainHealer())
             return JOB_MAIN_HEAL;
-        if (target->GetPlayerbotAI()->IsHealer())
+        if (target.GetPlayerbotAI()->IsHealer())
             return JOB_HEAL;
-        if (target->GetPlayerbotAI()->IsMainTank())
+        if (target.GetPlayerbotAI()->IsMainTank())
             return JOB_MAIN_TANK;
-        if (target->GetPlayerbotAI()->IsTank())
+        if (target.GetPlayerbotAI()->IsTank())
             return JOB_TANK;
         return JOB_DPS;
 }
 
-JOB_TYPE PlayerbotClassAI::GetTargetJob(Player* target)
+JOB_TYPE PlayerbotClassAI::GetTargetJob(Player& target)
 {
     // is a bot
-    if (target->GetPlayerbotAI())
+    if (target.GetPlayerbotAI())
         return GetBotJob(target);
 
     // figure out what to do with human players - i.e. figure out if they're tank, DPS or healer
-    uint32 uSpec = target->GetSpec();
-    switch (target->getClass())
+    uint32 uSpec = target.GetSpec();
+    switch (target.getClass())
     {
         case CLASS_PALADIN:
             if (uSpec == PALADIN_SPEC_HOLY)
                 return JOB_HEAL;
             if (uSpec == PALADIN_SPEC_PROTECTION)
                 return JOB_TANK;
-            return (&m_master == target) ? JOB_MASTER : JOB_DPS;
+            return (&m_master == &target) ? JOB_MASTER : JOB_DPS;
         case CLASS_DRUID:
             if (uSpec == DRUID_SPEC_RESTORATION)
                 return JOB_HEAL;
             // Feral can be used for both Tank or DPS... play it safe and assume tank. If not... he best be good at threat management or he'll ravage the healer's mana
             else if (uSpec == DRUID_SPEC_FERAL)
                 return JOB_TANK;
-            return (&m_master == target) ? JOB_MASTER : JOB_DPS;
+            return (&m_master == &target) ? JOB_MASTER : JOB_DPS;
         case CLASS_PRIEST:
             // Since Discipline can be used for both healer or DPS assume DPS
             if (uSpec == PRIEST_SPEC_HOLY)
                 return JOB_HEAL;
-            return (&m_master == target) ? JOB_MASTER : JOB_DPS;
+            return (&m_master == &target) ? JOB_MASTER : JOB_DPS;
         case CLASS_SHAMAN:
             if (uSpec == SHAMAN_SPEC_RESTORATION)
                 return JOB_HEAL;
-            return (&m_master == target) ? JOB_MASTER : JOB_DPS;
+            return (&m_master == &target) ? JOB_MASTER : JOB_DPS;
         case CLASS_WARRIOR:
             if (uSpec == WARRIOR_SPEC_PROTECTION)
                 return JOB_TANK;
-            return (&m_master == target) ? JOB_MASTER : JOB_DPS;
+            return (&m_master == &target) ? JOB_MASTER : JOB_DPS;
         case CLASS_MAGE:
         case CLASS_WARLOCK:
         case CLASS_ROGUE:
         case CLASS_HUNTER:
         default:
-            return (&m_master == target) ? JOB_MASTER : JOB_DPS;
+            return (&m_master == &target) ? JOB_MASTER : JOB_DPS;
     }
 }
 
-CombatManeuverReturns PlayerbotClassAI::CastSpellNoRanged(uint32 nextAction, Unit* pTarget)
+CombatManeuverReturns PlayerbotClassAI::CastSpellNoRanged(uint32 nextAction, Unit& target)
 {
     if (nextAction == 0)
         return RETURN_NO_ACTION_OK; // Asked to do nothing so... yeh... Dooone.
 
-    if (pTarget != nullptr)
-        return (m_ai.CastSpell(nextAction, *pTarget) == SPELL_CAST_OK ? RETURN_CONTINUE : RETURN_NO_ACTION_ERROR);
-    else
-        return (m_ai.CastSpell(nextAction) == SPELL_CAST_OK ? RETURN_CONTINUE : RETURN_NO_ACTION_ERROR);
+    return (m_ai.CastSpell(nextAction, target) == SPELL_CAST_OK ? RETURN_CONTINUE : RETURN_NO_ACTION_ERROR);
 }
 
-CombatManeuverReturns PlayerbotClassAI::CastSpellWand(uint32 nextAction, Unit* pTarget, uint32 SHOOT)
+CombatManeuverReturns PlayerbotClassAI::CastSpellWand(uint32 nextAction, Unit& target, uint32 SHOOT)
 {
     if (SHOOT > 0 && m_bot.FindCurrentSpellBySpellId(SHOOT) && m_bot.GetWeaponForAttack(RANGED_ATTACK, true, true))
     {
@@ -741,14 +732,11 @@ CombatManeuverReturns PlayerbotClassAI::CastSpellWand(uint32 nextAction, Unit* p
     if (nextAction == SHOOT)
     {
         if (SHOOT > 0 && m_ai.GetCombatStyle() == PlayerbotAI::COMBAT_RANGED && !m_bot.FindCurrentSpellBySpellId(SHOOT) && m_bot.GetWeaponForAttack(RANGED_ATTACK, true, true))
-            return (m_ai.CastSpell(SHOOT, *pTarget) == SPELL_CAST_OK ? RETURN_CONTINUE : RETURN_NO_ACTION_ERROR);
+            return (m_ai.CastSpell(SHOOT, target) == SPELL_CAST_OK ? RETURN_CONTINUE : RETURN_NO_ACTION_ERROR);
         else
             // Do Melee attack
             return RETURN_NO_ACTION_UNKNOWN; // We're asked to shoot and aren't.
     }
 
-    if (pTarget != nullptr)
-        return (m_ai.CastSpell(nextAction, *pTarget) == SPELL_CAST_OK ? RETURN_CONTINUE : RETURN_NO_ACTION_ERROR);
-    else
-        return (m_ai.CastSpell(nextAction) == SPELL_CAST_OK ? RETURN_CONTINUE : RETURN_NO_ACTION_ERROR);
+    return (m_ai.CastSpell(nextAction, target) == SPELL_CAST_OK ? RETURN_CONTINUE : RETURN_NO_ACTION_ERROR);
 }

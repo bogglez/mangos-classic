@@ -89,7 +89,7 @@ PlayerbotHunterAI::PlayerbotHunterAI(Player& master, Player& bot, PlayerbotAI& a
 
 PlayerbotHunterAI::~PlayerbotHunterAI() {}
 
-CombatManeuverReturns PlayerbotHunterAI::DoFirstCombatManeuver(Unit* pTarget)
+CombatManeuverReturns PlayerbotHunterAI::DoFirstCombatManeuver(Unit& target)
 {
     m_has_ammo = m_bot.HasItemCount(m_bot.GetUInt32Value(PLAYER_AMMO_ID), 1);
     DEBUG_LOG("current ammo (%u)", m_bot.GetUInt32Value(PLAYER_AMMO_ID));
@@ -128,16 +128,16 @@ CombatManeuverReturns PlayerbotHunterAI::DoFirstCombatManeuver(Unit* pTarget)
         case PlayerbotAI::SCENARIO_PVP_BG:
         case PlayerbotAI::SCENARIO_PVP_ARENA:
         case PlayerbotAI::SCENARIO_PVP_OPENWORLD:
-            return DoFirstCombatManeuverPVP(pTarget);
+            return DoFirstCombatManeuverPVP(target);
         case PlayerbotAI::SCENARIO_PVE:
         case PlayerbotAI::SCENARIO_PVE_ELITE:
         case PlayerbotAI::SCENARIO_PVE_RAID:
         default:
-            return DoFirstCombatManeuverPVE(pTarget);
+            return DoFirstCombatManeuverPVE(target);
     }
 }
 
-CombatManeuverReturns PlayerbotHunterAI::DoFirstCombatManeuverPVE(Unit* /*pTarget*/)
+CombatManeuverReturns PlayerbotHunterAI::DoFirstCombatManeuverPVE(Unit& target)
 {
     return RETURN_NO_ACTION_OK;
 }
@@ -149,15 +149,15 @@ bool PlayerbotHunterAI::HasPet(Player* bot)
     return result != nullptr;  //hunter either has no pet or stabled
 } // end HasPet
 
-CombatManeuverReturns PlayerbotHunterAI::DoFirstCombatManeuverPVP(Unit* /*pTarget*/)
+CombatManeuverReturns PlayerbotHunterAI::DoFirstCombatManeuverPVP(Unit& target)
 {
     return RETURN_NO_ACTION_OK;
 }
 
-CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuver(Unit* pTarget)
+CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuver(Unit& target)
 {
     // Face enemy, make sure bot is attacking
-    m_ai.FaceTarget(pTarget);
+    m_ai.FaceTarget(&target);
 
     switch (m_ai.GetScenarioType())
     {
@@ -165,40 +165,38 @@ CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuver(Unit* pTarget)
         case PlayerbotAI::SCENARIO_PVP_BG:
         case PlayerbotAI::SCENARIO_PVP_ARENA:
         case PlayerbotAI::SCENARIO_PVP_OPENWORLD:
-            return DoNextCombatManeuverPVP(pTarget);
+            return DoNextCombatManeuverPVP(target);
         case PlayerbotAI::SCENARIO_PVE:
         case PlayerbotAI::SCENARIO_PVE_ELITE:
         case PlayerbotAI::SCENARIO_PVE_RAID:
         default:
-            return DoNextCombatManeuverPVE(pTarget);
+            return DoNextCombatManeuverPVE(target);
     }
 }
 
-CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuverPVE(Unit* pTarget)
+CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuverPVE(Unit& target)
 {
-    if (!pTarget) return RETURN_NO_ACTION_ERROR;
-
-    Unit* pVictim = pTarget->GetVictim();
+    Unit* pVictim = target.GetVictim();
 
     // check for pet and heal if neccessary
     Pet* pet = m_bot.GetPet();
     // TODO: clarify/simplify: !pet->GetDeathState() != ALIVE
-    if (pet && PET_MEND > 0 && pet->IsAlive() && pet->GetHealthPercent() < 50 && pVictim != &m_bot && !pet->HasAura(PET_MEND, EFFECT_INDEX_0) && m_ai.CastSpell(PET_MEND, m_bot) == SPELL_CAST_OK)
+    if (pet && PET_MEND > 0 && pet->IsAlive() && pet->GetHealthPercent() < 50 && pVictim != &m_bot && !pet->HasAura(PET_MEND, EFFECT_INDEX_0) && m_ai.CastSpell(PET_MEND) == SPELL_CAST_OK)
     {
         m_ai.TellMaster("healing pet.");
         return RETURN_CONTINUE;
     }
-    else if (pet && INTIMIDATION > 0 && pVictim == pet && !pet->HasAura(INTIMIDATION, EFFECT_INDEX_0) && m_ai.CastSpell(INTIMIDATION, m_bot) == SPELL_CAST_OK)
+    else if (pet && INTIMIDATION > 0 && pVictim == pet && !pet->HasAura(INTIMIDATION, EFFECT_INDEX_0) && m_ai.CastSpell(INTIMIDATION) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
 
     /*    // racial traits
         if (m_bot.getRace() == RACE_ORC && !m_bot.HasAura(BLOOD_FURY, EFFECT_INDEX_0))
-            m_ai.CastSpell(BLOOD_FURY, m_bot);
+            m_ai.CastSpell(BLOOD_FURY);
         else if (m_bot.getRace() == RACE_TROLL && !m_bot.HasAura(BERSERKING, EFFECT_INDEX_0))
-            m_ai.CastSpell(BERSERKING, m_bot);
+            m_ai.CastSpell(BERSERKING);
     */
     // check if ranged combat is possible: by default chose ranged combat
-    bool meleeReach = m_bot.CanReachWithMeleeAttack(pTarget);
+    bool meleeReach = m_bot.CanReachWithMeleeAttack(&target);
 
     if (!meleeReach && m_has_ammo)
     {
@@ -208,7 +206,7 @@ CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuverPVE(Unit* pTarget)
 
         // increase ranged attack power...
         if (ASPECT_OF_THE_HAWK > 0 && !m_bot.HasAura(ASPECT_OF_THE_HAWK, EFFECT_INDEX_0))
-            m_ai.CastSpell(ASPECT_OF_THE_HAWK, m_bot);
+            m_ai.CastSpell(ASPECT_OF_THE_HAWK);
     }
     else
     {
@@ -220,12 +218,12 @@ CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuverPVE(Unit* pTarget)
 
         // become monkey (increases dodge chance)...
         if (ASPECT_OF_THE_MONKEY > 0 && !m_bot.HasAura(ASPECT_OF_THE_MONKEY, EFFECT_INDEX_0))
-            m_ai.CastSpell(ASPECT_OF_THE_MONKEY, m_bot);
+            m_ai.CastSpell(ASPECT_OF_THE_MONKEY);
     }
 
-    if (TRANQUILIZING_SHOT > 0 && IsTargetEnraged(pTarget) && m_bot.IsSpellReady(TRANQUILIZING_SHOT) && m_ai.CastSpell(TRANQUILIZING_SHOT, *pTarget) == SPELL_CAST_OK)
+    if (TRANQUILIZING_SHOT > 0 && IsTargetEnraged(&target) && m_bot.IsSpellReady(TRANQUILIZING_SHOT) && m_ai.CastSpell(TRANQUILIZING_SHOT, target) == SPELL_CAST_OK)
     {
-        m_ai.TellMaster("Casting TRANQUILIZING SHOT onto %s", pTarget->GetName());
+        m_ai.TellMaster("Casting TRANQUILIZING SHOT onto %s", target.GetName());
         return RETURN_CONTINUE;
     }
 
@@ -238,13 +236,13 @@ CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuverPVE(Unit* pTarget)
         if (m_ai.IsElite(newTarget))
         {
             // Try to disengage
-            if (DISENGAGE > 0 && m_bot.IsSpellReady(DISENGAGE) && m_ai.In_Reach(newTarget, DISENGAGE) && m_ai.CastSpell(DISENGAGE, *newTarget) == SPELL_CAST_OK)
+            if (DISENGAGE > 0 && m_bot.IsSpellReady(DISENGAGE) && m_ai.In_Reach(*newTarget, DISENGAGE) && m_ai.CastSpell(DISENGAGE, *newTarget) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
             // Increase dodge and parry chance
-            if (DETERRENCE > 0 && m_bot.IsSpellReady(DETERRENCE) && !m_bot.HasAura(DETERRENCE, EFFECT_INDEX_0) && m_ai.CastSpell(DETERRENCE, m_bot) == SPELL_CAST_OK)
+            if (DETERRENCE > 0 && m_bot.IsSpellReady(DETERRENCE) && !m_bot.HasAura(DETERRENCE, EFFECT_INDEX_0) && m_ai.CastSpell(DETERRENCE) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
             // Else feign death if low on health or attacked by a worldboss
-            if (FEIGN_DEATH > 0 && (m_ai.GetHealthPercent() <= 20 || m_ai.IsElite(pTarget, true)) && m_bot.IsSpellReady(FEIGN_DEATH) && !m_bot.HasAura(FEIGN_DEATH, EFFECT_INDEX_0) && m_ai.CastSpell(FEIGN_DEATH, m_bot) == SPELL_CAST_OK)
+            if (FEIGN_DEATH > 0 && (m_ai.GetHealthPercent() <= 20 || m_ai.IsElite(&target, true)) && m_bot.IsSpellReady(FEIGN_DEATH) && !m_bot.HasAura(FEIGN_DEATH, EFFECT_INDEX_0) && m_ai.CastSpell(FEIGN_DEATH) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
         }
     }
@@ -252,25 +250,25 @@ CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuverPVE(Unit* pTarget)
     // Distance management: avoid to be in the dead zone where neither melee nor range can be used: keep distance whenever possible
     // If not in range: come closer
     // Do not do it if passive or stay orders.
-    if (!m_ai.In_Reach(pTarget, AUTO_SHOT) &&
+    if (!m_ai.In_Reach(target, AUTO_SHOT) &&
             !(m_ai.GetCombatOrder() & PlayerbotAI::ORDERS_PASSIVE) &&
             (m_bot.GetPlayerbotAI()->GetMovementOrder() != PlayerbotAI::MOVEMENT_STAY))
     {
         m_ai.InterruptCurrentCastingSpell();
-        m_bot.GetMotionMaster()->MoveFollow(pTarget, 20.0f, m_bot.GetOrientation());
+        m_bot.GetMotionMaster()->MoveFollow(&target, 20.0f, m_bot.GetOrientation());
         return RETURN_CONTINUE;
     }
     // If below ranged combat distance and bot is not attacked by target
     // make it flee from target for a few seconds to get in ranged distance again
     // Do not do it if passive or stay orders.
-    if (pVictim != &m_bot && m_bot.GetDistance(pTarget, true, DIST_CALC_COMBAT_REACH_WITH_MELEE) <= 8.0f &&
+    if (pVictim != &m_bot && m_bot.GetDistance(&target, true, DIST_CALC_COMBAT_REACH_WITH_MELEE) <= 8.0f &&
             !(m_ai.GetCombatOrder() & PlayerbotAI::ORDERS_PASSIVE) &&
             (m_bot.GetPlayerbotAI()->GetMovementOrder() != PlayerbotAI::MOVEMENT_STAY))
     {
         m_ai.InterruptCurrentCastingSpell();
         m_ai.SetIgnoreUpdateTime(2);
         m_bot.GetMotionMaster()->Clear(false);
-        m_bot.GetMotionMaster()->MoveFleeing(pTarget, 2);
+        m_bot.GetMotionMaster()->MoveFleeing(&target, 2);
         return RETURN_CONTINUE;
     }
 
@@ -278,45 +276,45 @@ CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuverPVE(Unit* pTarget)
     if (m_ai.GetCombatStyle() == PlayerbotAI::COMBAT_RANGED)
     {
         // Debuff target
-        if (HUNTERS_MARK > 0 && m_ai.In_Reach(pTarget, HUNTERS_MARK) && !pTarget->HasAura(HUNTERS_MARK, EFFECT_INDEX_0) && m_ai.CastSpell(HUNTERS_MARK, *pTarget) == SPELL_CAST_OK)
+        if (HUNTERS_MARK > 0 && m_ai.In_Reach(target, HUNTERS_MARK) && !target.HasAura(HUNTERS_MARK, EFFECT_INDEX_0) && m_ai.CastSpell(HUNTERS_MARK, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
         // Buff self
-        if (RAPID_FIRE > 0 && !m_bot.HasAura(RAPID_FIRE, EFFECT_INDEX_0) && m_bot.IsSpellReady(RAPID_FIRE) && m_ai.CastSpell(RAPID_FIRE, m_bot) == SPELL_CAST_OK)
+        if (RAPID_FIRE > 0 && !m_bot.HasAura(RAPID_FIRE, EFFECT_INDEX_0) && m_bot.IsSpellReady(RAPID_FIRE) && m_ai.CastSpell(RAPID_FIRE) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (ARCANE_SHOT > 0 && m_bot.IsSpellReady(ARCANE_SHOT) && m_ai.In_Range(pTarget, ARCANE_SHOT) && m_ai.CastSpell(ARCANE_SHOT, *pTarget) == SPELL_CAST_OK)
+        if (ARCANE_SHOT > 0 && m_bot.IsSpellReady(ARCANE_SHOT) && m_ai.In_Range(target, ARCANE_SHOT) && m_ai.CastSpell(ARCANE_SHOT, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
         // Stings: only use Viper and Serpent sting. Stats decrease (Scorpid Sting) is useless in PvE
         // and as the bot is obviously not alone and assisting someone, no need to put the target to sleep (Wyvern Sting)
         // Viper sting for non-worldboss mana users
-        if (pTarget->GetPower(POWER_MANA) > 0 && !m_ai.IsElite(pTarget, true))
+        if (target.GetPower(POWER_MANA) > 0 && !m_ai.IsElite(&target, true))
         {
-            if (VIPER_STING > 0 && m_ai.In_Range(pTarget, VIPER_STING) && !pTarget->HasAura(VIPER_STING, EFFECT_INDEX_0) && m_ai.CastSpell(VIPER_STING, *pTarget) == SPELL_CAST_OK)
+            if (VIPER_STING > 0 && m_ai.In_Range(target, VIPER_STING) && !target.HasAura(VIPER_STING, EFFECT_INDEX_0) && m_ai.CastSpell(VIPER_STING, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
         }
         // Serpent sting for everyone else
         else
         {
-            if (SERPENT_STING > 0 && m_ai.In_Range(pTarget, SERPENT_STING) && !pTarget->HasAura(SERPENT_STING, EFFECT_INDEX_0) && m_ai.CastSpell(SERPENT_STING, *pTarget) == SPELL_CAST_OK)
+            if (SERPENT_STING > 0 && m_ai.In_Range(target, SERPENT_STING) && !target.HasAura(SERPENT_STING, EFFECT_INDEX_0) && m_ai.CastSpell(SERPENT_STING, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
         }
-        if (CONCUSSIVE_SHOT > 0 && m_ai.In_Range(pTarget, CONCUSSIVE_SHOT) && !pTarget->HasAura(CONCUSSIVE_SHOT, EFFECT_INDEX_0) && m_ai.CastSpell(CONCUSSIVE_SHOT, *pTarget) == SPELL_CAST_OK)
+        if (CONCUSSIVE_SHOT > 0 && m_ai.In_Range(target, CONCUSSIVE_SHOT) && !target.HasAura(CONCUSSIVE_SHOT, EFFECT_INDEX_0) && m_ai.CastSpell(CONCUSSIVE_SHOT, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (BLACK_ARROW > 0 && m_ai.In_Range(pTarget, BLACK_ARROW) && !pTarget->HasAura(BLACK_ARROW, EFFECT_INDEX_0) && m_ai.CastSpell(BLACK_ARROW, *pTarget) == SPELL_CAST_OK)
+        if (BLACK_ARROW > 0 && m_ai.In_Range(target, BLACK_ARROW) && !target.HasAura(BLACK_ARROW, EFFECT_INDEX_0) && m_ai.CastSpell(BLACK_ARROW, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (AIMED_SHOT > 0 && m_bot.IsSpellReady(AIMED_SHOT) && m_ai.In_Range(pTarget, AIMED_SHOT) && m_ai.CastSpell(AIMED_SHOT, *pTarget) == SPELL_CAST_OK)
+        if (AIMED_SHOT > 0 && m_bot.IsSpellReady(AIMED_SHOT) && m_ai.In_Range(target, AIMED_SHOT) && m_ai.CastSpell(AIMED_SHOT, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
 
-//       if (MULTI_SHOT > 0 && m_bot.IsSpellReady(MULTI_SHOT) && m_ai.In_Range(pTarget,MULTI_SHOT) && m_ai.GetAttackerCount() >= 3 && m_ai.CastSpell(MULTI_SHOT, *pTarget) == SPELL_CAST_OK)
+//       if (MULTI_SHOT > 0 && m_bot.IsSpellReady(MULTI_SHOT) && m_ai.In_Range(target,MULTI_SHOT) && m_ai.GetAttackerCount() >= 3 && m_ai.CastSpell(MULTI_SHOT, target) == SPELL_CAST_OK)
 //            return RETURN_CONTINUE;
-//       if (VOLLEY > 0 && m_ai.In_Range(pTarget,VOLLEY) && m_ai.GetAttackerCount() >= 3 && m_ai.CastSpell(VOLLEY, *pTarget) == SPELL_CAST_OK)
+//       if (VOLLEY > 0 && m_ai.In_Range(target,VOLLEY) && m_ai.GetAttackerCount() >= 3 && m_ai.CastSpell(VOLLEY, target) == SPELL_CAST_OK)
 //           return RETURN_CONTINUE;
 
         // Auto shot
-        // m_ai.TellMaster("target dist %f",m_bot.GetCombatDistance(pTarget,true));
+        // m_ai.TellMaster("target dist %f",m_bot.GetCombatDistance(&target,true));
         if (AUTO_SHOT > 0)
         {
             if (m_bot.isAttackReady(RANGED_ATTACK))
-                m_bot.CastSpell(pTarget, AUTO_SHOT, TRIGGERED_OLD_TRIGGERED);
+                m_bot.CastSpell(&target, AUTO_SHOT, TRIGGERED_OLD_TRIGGERED);
 
             const SpellEntry* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(AUTO_SHOT);
             if (!spellInfo)
@@ -332,25 +330,25 @@ CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuverPVE(Unit* pTarget)
     }
     else
     {
-        if (MONGOOSE_BITE > 0 && m_bot.RollMeleeOutcomeAgainst(pTarget, BASE_ATTACK, SPELL_SCHOOL_MASK_NORMAL) == MELEE_HIT_DODGE && m_ai.CastSpell(MONGOOSE_BITE, *pTarget) == SPELL_CAST_OK)
+        if (MONGOOSE_BITE > 0 && m_bot.RollMeleeOutcomeAgainst(&target, BASE_ATTACK, SPELL_SCHOOL_MASK_NORMAL) == MELEE_HIT_DODGE && m_ai.CastSpell(MONGOOSE_BITE, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (RAPTOR_STRIKE > 0 && m_bot.IsSpellReady(RAPTOR_STRIKE) && m_ai.In_Reach(pTarget, RAPTOR_STRIKE) && m_ai.CastSpell(RAPTOR_STRIKE, *pTarget) == SPELL_CAST_OK)
+        if (RAPTOR_STRIKE > 0 && m_bot.IsSpellReady(RAPTOR_STRIKE) && m_ai.In_Reach(target, RAPTOR_STRIKE) && m_ai.CastSpell(RAPTOR_STRIKE, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (EXPLOSIVE_TRAP > 0 && !pTarget->HasAura(EXPLOSIVE_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(IMMOLATION_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(FROST_TRAP, EFFECT_INDEX_0) && m_ai.CastSpell(EXPLOSIVE_TRAP, *pTarget) == SPELL_CAST_OK)
+        if (EXPLOSIVE_TRAP > 0 && !target.HasAura(EXPLOSIVE_TRAP, EFFECT_INDEX_0) && !target.HasAura(IMMOLATION_TRAP, EFFECT_INDEX_0) && !target.HasAura(FROST_TRAP, EFFECT_INDEX_0) && m_ai.CastSpell(EXPLOSIVE_TRAP, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (WING_CLIP > 0 && m_bot.IsSpellReady(WING_CLIP) && m_ai.In_Reach(pTarget, WING_CLIP) && !pTarget->HasAura(WING_CLIP, EFFECT_INDEX_0) && m_ai.CastSpell(WING_CLIP, *pTarget) == SPELL_CAST_OK)
+        if (WING_CLIP > 0 && m_bot.IsSpellReady(WING_CLIP) && m_ai.In_Reach(target, WING_CLIP) && !target.HasAura(WING_CLIP, EFFECT_INDEX_0) && m_ai.CastSpell(WING_CLIP, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (IMMOLATION_TRAP > 0 && !pTarget->HasAura(IMMOLATION_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(EXPLOSIVE_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(FROST_TRAP, EFFECT_INDEX_0) && m_ai.CastSpell(IMMOLATION_TRAP, *pTarget) == SPELL_CAST_OK)
+        if (IMMOLATION_TRAP > 0 && !target.HasAura(IMMOLATION_TRAP, EFFECT_INDEX_0) && !target.HasAura(EXPLOSIVE_TRAP, EFFECT_INDEX_0) && !target.HasAura(FROST_TRAP, EFFECT_INDEX_0) && m_ai.CastSpell(IMMOLATION_TRAP, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (FROST_TRAP > 0 && !pTarget->HasAura(FROST_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(IMMOLATION_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(EXPLOSIVE_TRAP, EFFECT_INDEX_0) && m_ai.CastSpell(FROST_TRAP, *pTarget) == SPELL_CAST_OK)
+        if (FROST_TRAP > 0 && !target.HasAura(FROST_TRAP, EFFECT_INDEX_0) && !target.HasAura(IMMOLATION_TRAP, EFFECT_INDEX_0) && !target.HasAura(EXPLOSIVE_TRAP, EFFECT_INDEX_0) && m_ai.CastSpell(FROST_TRAP, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
 
-//        if (m_bot.getRace() == RACE_TAUREN && !pTarget->HasAura(WAR_STOMP, EFFECT_INDEX_0) && m_ai.CastSpell(WAR_STOMP, *pTarget) == SPELL_CAST_OK)
+//        if (m_bot.getRace() == RACE_TAUREN && !target.HasAura(WAR_STOMP, EFFECT_INDEX_0) && m_ai.CastSpell(WAR_STOMP, target) == SPELL_CAST_OK)
 //            return RETURN_CONTINUE;
-//        else if (m_bot.getRace() == RACE_DWARF && m_bot.HasAuraState(AURA_STATE_DEADLY_POISON) && m_ai.CastSpell(STONEFORM, m_bot) == SPELL_CAST_OK)
+//        else if (m_bot.getRace() == RACE_DWARF && m_bot.HasAuraState(AURA_STATE_DEADLY_POISON) && m_ai.CastSpell(STONEFORM) == SPELL_CAST_OK)
 //            return RETURN_CONTINUE;
 
-        /*else if(FREEZING_TRAP > 0 && !pTarget->HasAura(FREEZING_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(ARCANE_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(EXPLOSIVE_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(BEAR_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(IMMOLATION_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(FROST_TRAP, EFFECT_INDEX_0) && m_ai.CastSpell(FREEZING_TRAP,*pTarget) == SPELL_CAST_OK)
+        /*else if(FREEZING_TRAP > 0 && !target.HasAura(FREEZING_TRAP, EFFECT_INDEX_0) && !target.HasAura(ARCANE_TRAP, EFFECT_INDEX_0) && !target.HasAura(EXPLOSIVE_TRAP, EFFECT_INDEX_0) && !target.HasAura(BEAR_TRAP, EFFECT_INDEX_0) && !target.HasAura(IMMOLATION_TRAP, EFFECT_INDEX_0) && !target.HasAura(FROST_TRAP, EFFECT_INDEX_0) && m_ai.CastSpell(FREEZING_TRAP,target) == SPELL_CAST_OK)
             out << " > Freezing Trap"; // this can trap your bots too
         */
     }
@@ -358,12 +356,12 @@ CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuverPVE(Unit* pTarget)
     return RETURN_NO_ACTION_OK;
 } // end DoNextCombatManeuver
 
-CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuverPVP(Unit* pTarget)
+CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuverPVP(Unit& target)
 {
     if (m_ai.CastSpell(RAPTOR_STRIKE) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
 
-    return DoNextCombatManeuverPVE(pTarget); // TODO: bad idea perhaps, but better than the alternative
+    return DoNextCombatManeuverPVE(target); // TODO: bad idea perhaps, but better than the alternative
 }
 
 bool PlayerbotHunterAI::IsTargetEnraged(Unit* pTarget)
@@ -392,11 +390,11 @@ void PlayerbotHunterAI::DoNonCombatActions()
 
     // buff group
     if (TRUESHOT_AURA > 0 && !m_bot.HasAura(TRUESHOT_AURA, EFFECT_INDEX_0))
-        m_ai.CastSpell(TRUESHOT_AURA, m_bot);
+        m_ai.CastSpell(TRUESHOT_AURA);
 
     // buff myself
     if (ASPECT_OF_THE_HAWK > 0 && !m_bot.HasAura(ASPECT_OF_THE_HAWK, EFFECT_INDEX_0))
-        m_ai.CastSpell(ASPECT_OF_THE_HAWK, m_bot);
+        m_ai.CastSpell(ASPECT_OF_THE_HAWK);
 
     // hp/mana check
     if (EatDrinkBandage())
@@ -410,7 +408,7 @@ void PlayerbotHunterAI::DoNonCombatActions()
         if (!pet)    // Hunter has pet but it is not found: dismissed or dead and corpse was removed
         {
             // summon pet
-            SpellCastResult res = m_ai.CastSpell(PET_SUMMON, m_bot);
+            SpellCastResult res = m_ai.CastSpell(PET_SUMMON);
             switch (res)
             {
                 case SPELL_CAST_OK:
@@ -419,7 +417,7 @@ void PlayerbotHunterAI::DoNonCombatActions()
                 case SPELL_FAILED_DONT_REPORT:
                     if (PET_REVIVE > 0)
                     {
-                        switch (m_ai.CastSpell(PET_REVIVE, m_bot))
+                        switch (m_ai.CastSpell(PET_REVIVE))
                         {
                             case SPELL_CAST_OK:
                                 m_ai.TellMaster("Pet is dead, reviving it.");
@@ -444,12 +442,12 @@ void PlayerbotHunterAI::DoNonCombatActions()
         }
         else if (!(pet->IsAlive()))
         {
-            if (PET_REVIVE > 0 && m_ai.CastSpell(PET_REVIVE, m_bot) == SPELL_CAST_OK)
+            if (PET_REVIVE > 0 && m_ai.CastSpell(PET_REVIVE) == SPELL_CAST_OK)
                 m_ai.TellMaster("reviving pet.");
         }
         else if (pet->GetHealthPercent() < 50)
         {
-            if (PET_MEND > 0 && pet->IsAlive() && !pet->HasAura(PET_MEND, EFFECT_INDEX_0) && m_ai.CastSpell(PET_MEND, m_bot) == SPELL_CAST_OK)
+            if (PET_MEND > 0 && pet->IsAlive() && !pet->HasAura(PET_MEND, EFFECT_INDEX_0) && m_ai.CastSpell(PET_MEND) == SPELL_CAST_OK)
                 m_ai.TellMaster("healing pet.");
         }
         else if (pet->GetHappinessState() != HAPPY) // if pet is hungry
@@ -519,6 +517,6 @@ void PlayerbotHunterAI::DoNonCombatActions()
         && !m_bot.IsMounted()
         && !m_bot.HasAura(SHADOWMELD, EFFECT_INDEX_0))
     {
-        m_ai.CastSpell(SHADOWMELD, m_bot);
+        m_ai.CastSpell(SHADOWMELD);
     }
 } // end DoNonCombatActions

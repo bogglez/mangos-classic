@@ -82,7 +82,7 @@ PlayerbotWarriorAI::PlayerbotWarriorAI(Player& master, Player& bot, PlayerbotAI&
 }
 PlayerbotWarriorAI::~PlayerbotWarriorAI() {}
 
-CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuver(Unit* pTarget)
+CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuver(Unit& target)
 {
     // There are NPCs in BGs and Open World PvP, so don't filter this on PvP scenarios (of course if PvP targets anyone but tank, all bets are off anyway)
     // Wait until the tank says so, until any non-tank gains aggro or X seconds - whichever is shortest
@@ -92,14 +92,14 @@ CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuver(Unit* pTarget)
         {
             if (PlayerbotAI::ORDERS_TANK & m_ai.GetCombatOrder())
             {
-                if (m_bot.GetDistance(pTarget, true, DIST_CALC_COMBAT_REACH_WITH_MELEE) <= ATTACK_DISTANCE)
+                if (m_bot.GetDistance(&target, true, DIST_CALC_COMBAT_REACH_WITH_MELEE) <= ATTACK_DISTANCE)
                 {
                     // Set everyone's UpdateAI() waiting to 2 seconds
                     m_ai.SetGroupIgnoreUpdateTime(2);
                     // Clear their TEMP_WAIT_TANKAGGRO flag
                     m_ai.ClearGroupCombatOrder(PlayerbotAI::ORDERS_TEMP_WAIT_TANKAGGRO);
                     // Start attacking, force target on current target
-                    m_ai.Attack(pTarget);
+                    m_ai.Attack(&target);
 
                     // While everyone else is waiting 2 second, we need to build up aggro, so don't return
                 }
@@ -132,18 +132,18 @@ CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuver(Unit* pTarget)
         case PlayerbotAI::SCENARIO_PVP_BG:
         case PlayerbotAI::SCENARIO_PVP_ARENA:
         case PlayerbotAI::SCENARIO_PVP_OPENWORLD:
-            return DoFirstCombatManeuverPVP(pTarget);
+            return DoFirstCombatManeuverPVP(target);
         case PlayerbotAI::SCENARIO_PVE:
         case PlayerbotAI::SCENARIO_PVE_ELITE:
         case PlayerbotAI::SCENARIO_PVE_RAID:
         default:
-            return DoFirstCombatManeuverPVE(pTarget);
+            return DoFirstCombatManeuverPVE(target);
     }
 }
 
-CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuverPVE(Unit* pTarget)
+CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuverPVE(Unit& target)
 {
-    float fTargetDist = m_bot.GetDistance(pTarget, true, DIST_CALC_COMBAT_REACH_WITH_MELEE);
+    float fTargetDist = m_bot.GetDistance(&target, true, DIST_CALC_COMBAT_REACH_WITH_MELEE);
 
     // Get bot spec. If bot has tank orders, force spec to protection
     uint32 spec = ((m_ai.GetCombatOrder() & PlayerbotAI::ORDERS_TANK) ? WARRIOR_SPEC_PROTECTION : m_bot.GetSpec());
@@ -160,10 +160,10 @@ CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuverPVE(Unit* pTarget
                 return RETURN_NO_ACTION_OK;
             else if (fTargetDist > 25.0f)
                 return RETURN_CONTINUE; // wait to come into range
-            else if (INTERCEPT > 0 && m_ai.CastSpell(INTERCEPT, *pTarget) == SPELL_CAST_OK)
+            else if (INTERCEPT > 0 && m_ai.CastSpell(INTERCEPT, target) == SPELL_CAST_OK)
             {
                 float x, y, z;
-                pTarget->GetContactPoint(&m_bot, x, y, z, 3.666666f);
+                target.GetContactPoint(&m_bot, x, y, z, 3.666666f);
                 m_bot.Relocate(x, y, z);
                 return RETURN_FINISHED_FIRST_MOVES;
             }
@@ -179,10 +179,10 @@ CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuverPVE(Unit* pTarget
                 return RETURN_NO_ACTION_OK;
             if (fTargetDist > 25.0f)
                 return RETURN_CONTINUE; // wait to come into range
-            else if (CHARGE > 0 && m_ai.CastSpell(CHARGE, *pTarget) == SPELL_CAST_OK)
+            else if (CHARGE > 0 && m_ai.CastSpell(CHARGE, target) == SPELL_CAST_OK)
             {
                 float x, y, z;
-                pTarget->GetContactPoint(&m_bot, x, y, z, 3.666666f);
+                target.GetContactPoint(&m_bot, x, y, z, 3.666666f);
                 m_bot.Relocate(x, y, z);
                 return RETURN_FINISHED_FIRST_MOVES;
             }
@@ -192,7 +192,7 @@ CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuverPVE(Unit* pTarget
     {
         if (!m_bot.HasAura(DEFENSIVE_STANCE, EFFECT_INDEX_0) && m_ai.CastSpell(DEFENSIVE_STANCE) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        else if (TAUNT > 0 && m_bot.HasAura(DEFENSIVE_STANCE, EFFECT_INDEX_0) && m_ai.CastSpell(TAUNT, *pTarget) == SPELL_CAST_OK)
+        else if (TAUNT > 0 && m_bot.HasAura(DEFENSIVE_STANCE, EFFECT_INDEX_0) && m_ai.CastSpell(TAUNT, target) == SPELL_CAST_OK)
             return RETURN_FINISHED_FIRST_MOVES;
     }
 
@@ -200,15 +200,15 @@ CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuverPVE(Unit* pTarget
 }
 
 // TODO: blatant copy of PVE for now, please PVP-port it
-CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuverPVP(Unit* pTarget)
+CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuverPVP(Unit& target)
 {
-    float fTargetDist = m_bot.GetDistance(pTarget, true, DIST_CALC_COMBAT_REACH_WITH_MELEE);
+    float fTargetDist = m_bot.GetDistance(&target, true, DIST_CALC_COMBAT_REACH_WITH_MELEE);
 
     if (DEFENSIVE_STANCE && (m_ai.GetCombatOrder() & PlayerbotAI::ORDERS_TANK))
     {
         if (!m_bot.HasAura(DEFENSIVE_STANCE, EFFECT_INDEX_0) && m_ai.CastSpell(DEFENSIVE_STANCE) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        else if (TAUNT > 0 && m_bot.HasAura(DEFENSIVE_STANCE, EFFECT_INDEX_0) && m_ai.CastSpell(TAUNT, *pTarget) == SPELL_CAST_OK)
+        else if (TAUNT > 0 && m_bot.HasAura(DEFENSIVE_STANCE, EFFECT_INDEX_0) && m_ai.CastSpell(TAUNT, target) == SPELL_CAST_OK)
             return RETURN_FINISHED_FIRST_MOVES;
     }
 
@@ -224,10 +224,10 @@ CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuverPVP(Unit* pTarget
                 return RETURN_NO_ACTION_OK;
             else if (fTargetDist > 25.0f)
                 return RETURN_CONTINUE; // wait to come into range
-            else if (INTERCEPT > 0 && m_ai.CastSpell(INTERCEPT, *pTarget) == SPELL_CAST_OK)
+            else if (INTERCEPT > 0 && m_ai.CastSpell(INTERCEPT, target) == SPELL_CAST_OK)
             {
                 float x, y, z;
-                pTarget->GetContactPoint(&m_bot, x, y, z, 3.666666f);
+                target.GetContactPoint(&m_bot, x, y, z, 3.666666f);
                 m_bot.Relocate(x, y, z);
                 return RETURN_FINISHED_FIRST_MOVES;
             }
@@ -244,10 +244,10 @@ CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuverPVP(Unit* pTarget
                 return RETURN_NO_ACTION_OK;
             if (fTargetDist > 25.0f)
                 return RETURN_CONTINUE; // wait to come into range
-            else if (CHARGE > 0 && m_ai.CastSpell(CHARGE, *pTarget) == SPELL_CAST_OK)
+            else if (CHARGE > 0 && m_ai.CastSpell(CHARGE, target) == SPELL_CAST_OK)
             {
                 float x, y, z;
-                pTarget->GetContactPoint(&m_bot, x, y, z, 3.666666f);
+                target.GetContactPoint(&m_bot, x, y, z, 3.666666f);
                 m_bot.Relocate(x, y, z);
                 return RETURN_FINISHED_FIRST_MOVES;
             }
@@ -257,10 +257,10 @@ CombatManeuverReturns PlayerbotWarriorAI::DoFirstCombatManeuverPVP(Unit* pTarget
     return RETURN_NO_ACTION_OK;
 }
 
-CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuver(Unit* pTarget)
+CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuver(Unit& target)
 {
     // Face enemy, make sure bot is attacking
-    m_ai.FaceTarget(pTarget);
+    m_ai.FaceTarget(&target);
 
     switch (m_ai.GetScenarioType())
     {
@@ -268,22 +268,22 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuver(Unit* pTarget)
         case PlayerbotAI::SCENARIO_PVP_BG:
         case PlayerbotAI::SCENARIO_PVP_ARENA:
         case PlayerbotAI::SCENARIO_PVP_OPENWORLD:
-            return DoNextCombatManeuverPVP(pTarget);
+            return DoNextCombatManeuverPVP(target);
         case PlayerbotAI::SCENARIO_PVE:
         case PlayerbotAI::SCENARIO_PVE_ELITE:
         case PlayerbotAI::SCENARIO_PVE_RAID:
         default:
-            return DoNextCombatManeuverPVE(pTarget);
+            return DoNextCombatManeuverPVE(target);
     }
 }
 
-CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
+CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit& target)
 {
-    //float fTargetDist = m_bot.GetCombatDistance(pTarget, true);
+    //float fTargetDist = m_bot.GetCombatDistance(&target, true);
 
     //Used to determine if this bot is highest on threat
     Unit* newTarget = m_ai.FindAttacker((PlayerbotAI::ATTACKERINFOTYPE)(PlayerbotAI::AIT_VICTIMSELF | PlayerbotAI::AIT_HIGHESTTHREAT), &m_bot);
-    Unit* pVictim = pTarget->GetVictim();
+    Unit* pVictim = target.GetVictim();
 
     // do shouts, berserker rage, etc...
     if (BERSERKER_RAGE > 0 && !m_bot.HasAura(BERSERKER_RAGE, EFFECT_INDEX_0))
@@ -292,9 +292,9 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
         m_ai.CastSpell(BLOODRAGE);
 
     // Prevent low health humanoid from fleeing with Hamstring
-    if ((m_bot.HasAura(BATTLE_STANCE, EFFECT_INDEX_0) || m_bot.HasAura(BERSERKER_STANCE, EFFECT_INDEX_0)) && pTarget->GetHealthPercent() < 20 && !m_ai.IsElite(pTarget, true))
+    if ((m_bot.HasAura(BATTLE_STANCE, EFFECT_INDEX_0) || m_bot.HasAura(BERSERKER_STANCE, EFFECT_INDEX_0)) && target.GetHealthPercent() < 20 && !m_ai.IsElite(&target, true))
     {
-        if (HAMSTRING > 0 && !pTarget->HasAura(HAMSTRING, EFFECT_INDEX_0) && m_ai.CastSpell(HAMSTRING, *pTarget) == SPELL_CAST_OK)
+        if (HAMSTRING > 0 && !target.HasAura(HAMSTRING, EFFECT_INDEX_0) && m_ai.CastSpell(HAMSTRING, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
     }
 
@@ -306,29 +306,29 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
     if (spec == WARRIOR_SPEC_FURY && (m_ai.GetCombatOrder() & PlayerbotAI::ORDERS_ASSIST))
     {
         // Try to interrupt spell if target is casting one
-        if (pTarget->IsNonMeleeSpellCasted(true))
+        if (target.IsNonMeleeSpellCasted(true))
         {
-            if (PUMMEL > 0 && m_bot.IsSpellReady(PUMMEL) && m_ai.CastSpell(PUMMEL, *pTarget) == SPELL_CAST_OK)
+            if (PUMMEL > 0 && m_bot.IsSpellReady(PUMMEL) && m_ai.CastSpell(PUMMEL, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
         }
 
         if (DEATH_WISH > 0 && !m_bot.HasAura(DEATH_WISH, EFFECT_INDEX_0) && m_bot.IsSpellReady(DEATH_WISH) && m_ai.CastSpell(DEATH_WISH, m_bot) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (EXECUTE > 0 && pTarget->GetHealthPercent() < 20 && m_ai.CastSpell(EXECUTE, *pTarget) == SPELL_CAST_OK)
+        if (EXECUTE > 0 && target.GetHealthPercent() < 20 && m_ai.CastSpell(EXECUTE, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (BLOODTHIRST > 0 && m_bot.IsSpellReady(BLOODTHIRST) && m_ai.CastSpell(BLOODTHIRST, *pTarget) == SPELL_CAST_OK)
+        if (BLOODTHIRST > 0 && m_bot.IsSpellReady(BLOODTHIRST) && m_ai.CastSpell(BLOODTHIRST, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (WHIRLWIND > 0 && m_bot.IsSpellReady(WHIRLWIND) && m_ai.CastSpell(WHIRLWIND, *pTarget) == SPELL_CAST_OK)
+        if (WHIRLWIND > 0 && m_bot.IsSpellReady(WHIRLWIND) && m_ai.CastSpell(WHIRLWIND, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (HEROIC_STRIKE > 0 && m_ai.CastSpell(HEROIC_STRIKE, *pTarget) == SPELL_CAST_OK)
+        if (HEROIC_STRIKE > 0 && m_ai.CastSpell(HEROIC_STRIKE, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
     }
     else if (spec == WARRIOR_SPEC_ARMS || (m_ai.GetCombatOrder() & PlayerbotAI::ORDERS_ASSIST))
     {
         // Try to interrupt spell if target is casting one
-        if (pTarget->IsNonMeleeSpellCasted(true))
+        if (target.IsNonMeleeSpellCasted(true))
         {
-            if (SHIELD_BASH > 0 && m_ai.CastSpell(SHIELD_BASH, *pTarget) == SPELL_CAST_OK)
+            if (SHIELD_BASH > 0 && m_ai.CastSpell(SHIELD_BASH, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
         }
 
@@ -336,27 +336,27 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
         if (RETALIATION > 0 && pVictim == &m_bot && m_ai.GetAttackerCount() >= 2 && m_bot.IsSpellReady(RETALIATION) && !m_bot.HasAura(RETALIATION, EFFECT_INDEX_0) && m_ai.CastSpell(RETALIATION, m_bot) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
 
-        if (EXECUTE > 0 && pTarget->GetHealthPercent() < 20 && m_ai.CastSpell(EXECUTE, *pTarget) == SPELL_CAST_OK)
+        if (EXECUTE > 0 && target.GetHealthPercent() < 20 && m_ai.CastSpell(EXECUTE, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (REND > 0 && !pTarget->HasAura(REND, EFFECT_INDEX_0) && m_ai.CastSpell(REND, *pTarget) == SPELL_CAST_OK)
+        if (REND > 0 && !target.HasAura(REND, EFFECT_INDEX_0) && m_ai.CastSpell(REND, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (MORTAL_STRIKE > 0 && m_bot.IsSpellReady(MORTAL_STRIKE) && m_ai.CastSpell(MORTAL_STRIKE, *pTarget) == SPELL_CAST_OK)
+        if (MORTAL_STRIKE > 0 && m_bot.IsSpellReady(MORTAL_STRIKE) && m_ai.CastSpell(MORTAL_STRIKE, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
         if (OVERPOWER > 0 && m_bot.IsSpellReady(OVERPOWER))
         {
-            uint8 base = pTarget->RollMeleeOutcomeAgainst(&m_bot, BASE_ATTACK, SPELL_SCHOOL_MASK_NORMAL);
-            uint8 off = pTarget->RollMeleeOutcomeAgainst(&m_bot, OFF_ATTACK, SPELL_SCHOOL_MASK_NORMAL);
+            uint8 base = target.RollMeleeOutcomeAgainst(&m_bot, BASE_ATTACK, SPELL_SCHOOL_MASK_NORMAL);
+            uint8 off = target.RollMeleeOutcomeAgainst(&m_bot, OFF_ATTACK, SPELL_SCHOOL_MASK_NORMAL);
             if (base == MELEE_HIT_DODGE || off == MELEE_HIT_DODGE)
             {
-                if (m_bot.IsSpellReady(OVERPOWER) && m_ai.CastSpell(OVERPOWER, *pTarget) == SPELL_CAST_OK)
+                if (m_bot.IsSpellReady(OVERPOWER) && m_ai.CastSpell(OVERPOWER, target) == SPELL_CAST_OK)
                     return RETURN_CONTINUE;
             }
         }
-        if (THUNDER_CLAP > 0 && !pTarget->HasAura(THUNDER_CLAP) && m_ai.CastSpell(THUNDER_CLAP, *pTarget) == SPELL_CAST_OK)
+        if (THUNDER_CLAP > 0 && !target.HasAura(THUNDER_CLAP) && m_ai.CastSpell(THUNDER_CLAP, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (HEROIC_STRIKE > 0 && m_ai.CastSpell(HEROIC_STRIKE, *pTarget) == SPELL_CAST_OK)
+        if (HEROIC_STRIKE > 0 && m_ai.CastSpell(HEROIC_STRIKE, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (SLAM > 0 && m_ai.CastSpell(SLAM, *pTarget) == SPELL_CAST_OK)
+        if (SLAM > 0 && m_ai.CastSpell(SLAM, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
     }
     else if (spec == WARRIOR_SPEC_PROTECTION)
@@ -365,7 +365,7 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
         if (!newTarget)
         {
             // Cast taunt on bot current target if the mob is targeting someone else
-            if (m_ai.GetCombatOrder() & PlayerbotAI::ORDERS_TANK && TAUNT > 0 && m_bot.IsSpellReady(TAUNT) && m_ai.CastSpell(TAUNT, *pTarget) == SPELL_CAST_OK)
+            if (m_ai.GetCombatOrder() & PlayerbotAI::ORDERS_TANK && TAUNT > 0 && m_bot.IsSpellReady(TAUNT) && m_ai.CastSpell(TAUNT, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
         }
 
@@ -388,66 +388,66 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
         }
 
         // Try to interrupt spell if target is casting one and target is not a worldboss (they are almost all immune to interrupt)
-        if (pTarget->IsNonMeleeSpellCasted(true) && !m_ai.IsElite(pTarget, true))
+        if (target.IsNonMeleeSpellCasted(true) && !m_ai.IsElite(&target, true))
         {
-            if (SHIELD_BASH > 0 && m_ai.CastSpell(SHIELD_BASH, *pTarget) == SPELL_CAST_OK)
+            if (SHIELD_BASH > 0 && m_ai.CastSpell(SHIELD_BASH, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
         }
 
         //Do not waste rage applying Sunder Armor if it is already stacked 5 times
         if (SUNDER_ARMOR > 0)
         {
-            if (!pTarget->HasAura(SUNDER_ARMOR) && m_ai.CastSpell(SUNDER_ARMOR, *pTarget) == SPELL_CAST_OK)   // no stacks: cast it
+            if (!target.HasAura(SUNDER_ARMOR) && m_ai.CastSpell(SUNDER_ARMOR, target) == SPELL_CAST_OK)   // no stacks: cast it
                 return RETURN_CONTINUE;
             else
             {
-                SpellAuraHolder* holder = pTarget->GetSpellAuraHolder(SUNDER_ARMOR);
-                if (holder && (holder->GetStackAmount() < 5) && m_ai.CastSpell(SUNDER_ARMOR, *pTarget) == SPELL_CAST_OK)
+                SpellAuraHolder* holder = target.GetSpellAuraHolder(SUNDER_ARMOR);
+                if (holder && (holder->GetStackAmount() < 5) && m_ai.CastSpell(SUNDER_ARMOR, target) == SPELL_CAST_OK)
                     return RETURN_CONTINUE;
             }
         }
 
         if (REVENGE > 0 && m_bot.IsSpellReady(REVENGE))
         {
-            uint8 base = pTarget->RollMeleeOutcomeAgainst(&m_bot, BASE_ATTACK, SPELL_SCHOOL_MASK_NORMAL);
-            uint8 off = pTarget->RollMeleeOutcomeAgainst(&m_bot, OFF_ATTACK, SPELL_SCHOOL_MASK_NORMAL);
+            uint8 base = target.RollMeleeOutcomeAgainst(&m_bot, BASE_ATTACK, SPELL_SCHOOL_MASK_NORMAL);
+            uint8 off = target.RollMeleeOutcomeAgainst(&m_bot, OFF_ATTACK, SPELL_SCHOOL_MASK_NORMAL);
             if (base == MELEE_HIT_PARRY || base == MELEE_HIT_DODGE || base == MELEE_HIT_BLOCK || off == MELEE_HIT_PARRY || off == MELEE_HIT_DODGE || off == MELEE_HIT_BLOCK)
-                if (m_ai.CastSpell(REVENGE, *pTarget) == SPELL_CAST_OK)
+                if (m_ai.CastSpell(REVENGE, target) == SPELL_CAST_OK)
                     return RETURN_CONTINUE;
         }
-        if (REND > 0 && !pTarget->HasAura(REND, EFFECT_INDEX_0) && m_ai.CastSpell(REND, *pTarget) == SPELL_CAST_OK)
+        if (REND > 0 && !target.HasAura(REND, EFFECT_INDEX_0) && m_ai.CastSpell(REND, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
 
-        if (DEMORALIZING_SHOUT > 0 && !pTarget->HasAura(DEMORALIZING_SHOUT, EFFECT_INDEX_0) && m_ai.CastSpell(DEMORALIZING_SHOUT, *pTarget) == SPELL_CAST_OK)
+        if (DEMORALIZING_SHOUT > 0 && !target.HasAura(DEMORALIZING_SHOUT, EFFECT_INDEX_0) && m_ai.CastSpell(DEMORALIZING_SHOUT, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
         // check that target is dangerous (elite) before casting shield block: preserve bot cooldowns
-        if (SHIELD_BLOCK > 0 && m_ai.IsElite(pTarget) && !m_bot.HasAura(SHIELD_BLOCK, EFFECT_INDEX_0) && m_ai.CastSpell(SHIELD_BLOCK, m_bot) == SPELL_CAST_OK)
+        if (SHIELD_BLOCK > 0 && m_ai.IsElite(&target) && !m_bot.HasAura(SHIELD_BLOCK, EFFECT_INDEX_0) && m_ai.CastSpell(SHIELD_BLOCK, m_bot) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
         // TODO: only cast disarm if target has equipment?
-        if (DISARM > 0 && !pTarget->HasAura(DISARM, EFFECT_INDEX_0) && m_ai.CastSpell(DISARM, *pTarget) == SPELL_CAST_OK)
+        if (DISARM > 0 && !target.HasAura(DISARM, EFFECT_INDEX_0) && m_ai.CastSpell(DISARM, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (CONCUSSION_BLOW > 0 && m_bot.IsSpellReady(CONCUSSION_BLOW) && m_ai.CastSpell(CONCUSSION_BLOW, *pTarget) == SPELL_CAST_OK)
+        if (CONCUSSION_BLOW > 0 && m_bot.IsSpellReady(CONCUSSION_BLOW) && m_ai.CastSpell(CONCUSSION_BLOW, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (SHIELD_SLAM > 0 && m_bot.IsSpellReady(SHIELD_SLAM) && m_ai.CastSpell(SHIELD_SLAM, *pTarget) == SPELL_CAST_OK)
+        if (SHIELD_SLAM > 0 && m_bot.IsSpellReady(SHIELD_SLAM) && m_ai.CastSpell(SHIELD_SLAM, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-        if (HEROIC_STRIKE > 0 && m_ai.CastSpell(HEROIC_STRIKE, *pTarget) == SPELL_CAST_OK)
+        if (HEROIC_STRIKE > 0 && m_ai.CastSpell(HEROIC_STRIKE, target) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
     }
 
     /*    case WarriorBattle:
             if (SWEEPING_STRIKES > 0 && m_ai.GetAttackerCount() >= 2 && !m_bot.HasAura(SWEEPING_STRIKES, EFFECT_INDEX_0) && m_ai.CastSpell(SWEEPING_STRIKES, m_bot) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            if (INTIMIDATING_SHOUT > 0 && m_ai.GetAttackerCount() > 5 && m_ai.CastSpell(INTIMIDATING_SHOUT, *pTarget) == SPELL_CAST_OK)
+            if (INTIMIDATING_SHOUT > 0 && m_ai.GetAttackerCount() > 5 && m_ai.CastSpell(INTIMIDATING_SHOUT, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            if (CHALLENGING_SHOUT > 0 && pVictim != m_bot && m_ai.GetHealthPercent() > 25 && !pTarget->HasAura(MOCKING_BLOW, EFFECT_INDEX_0) && !pTarget->HasAura(CHALLENGING_SHOUT, EFFECT_INDEX_0) && m_ai.CastSpell(CHALLENGING_SHOUT, *pTarget) == SPELL_CAST_OK)
+            if (CHALLENGING_SHOUT > 0 && pVictim != m_bot && m_ai.GetHealthPercent() > 25 && !target.HasAura(MOCKING_BLOW, EFFECT_INDEX_0) && !target.HasAura(CHALLENGING_SHOUT, EFFECT_INDEX_0) && m_ai.CastSpell(CHALLENGING_SHOUT, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            if (CLEAVE > 0 && m_ai.CastSpell(CLEAVE, *pTarget) == SPELL_CAST_OK)
+            if (CLEAVE > 0 && m_ai.CastSpell(CLEAVE, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            if (PIERCING_HOWL > 0 && && m_ai.GetAttackerCount() >= 3 && !pTarget->HasAura(WAR_STOMP, EFFECT_INDEX_0) && !pTarget->HasAura(PIERCING_HOWL, EFFECT_INDEX_0) && !pTarget->HasAura(SHOCKWAVE, EFFECT_INDEX_0) && !pTarget->HasAura(CONCUSSION_BLOW, EFFECT_INDEX_0) && m_ai.CastSpell(PIERCING_HOWL, *pTarget) == SPELL_CAST_OK)
+            if (PIERCING_HOWL > 0 && && m_ai.GetAttackerCount() >= 3 && !target.HasAura(WAR_STOMP, EFFECT_INDEX_0) && !target.HasAura(PIERCING_HOWL, EFFECT_INDEX_0) && !target.HasAura(SHOCKWAVE, EFFECT_INDEX_0) && !target.HasAura(CONCUSSION_BLOW, EFFECT_INDEX_0) && m_ai.CastSpell(PIERCING_HOWL, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            if (MOCKING_BLOW > 0 && pVictim != m_bot && m_ai.GetHealthPercent() > 25 && !pTarget->HasAura(MOCKING_BLOW, EFFECT_INDEX_0) && !pTarget->HasAura(CHALLENGING_SHOUT, EFFECT_INDEX_0) && m_ai.CastSpell(MOCKING_BLOW, *pTarget) == SPELL_CAST_OK)
+            if (MOCKING_BLOW > 0 && pVictim != m_bot && m_ai.GetHealthPercent() > 25 && !target.HasAura(MOCKING_BLOW, EFFECT_INDEX_0) && !target.HasAura(CHALLENGING_SHOUT, EFFECT_INDEX_0) && m_ai.CastSpell(MOCKING_BLOW, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            if (m_bot.getRace() == RACE_TAUREN && !pTarget->HasAura(WAR_STOMP, EFFECT_INDEX_0) && !pTarget->HasAura(PIERCING_HOWL, EFFECT_INDEX_0) && !pTarget->HasAura(CONCUSSION_BLOW, EFFECT_INDEX_0) && m_ai.CastSpell(WAR_STOMP, *pTarget) == SPELL_CAST_OK)
+            if (m_bot.getRace() == RACE_TAUREN && !target.HasAura(WAR_STOMP, EFFECT_INDEX_0) && !target.HasAura(PIERCING_HOWL, EFFECT_INDEX_0) && !target.HasAura(CONCUSSION_BLOW, EFFECT_INDEX_0) && m_ai.CastSpell(WAR_STOMP, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
             if (m_bot.getRace() == RACE_HUMAN && m_bot.hasUnitState(UNIT_STAT_STUNNED) || m_bot.HasAuraType(SPELL_AURA_MOD_FEAR) || m_bot.HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) || m_bot.HasAuraType(SPELL_AURA_MOD_CHARM) && m_ai.CastSpell(EVERY_MAN_FOR_HIMSELF, m_bot) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
@@ -466,12 +466,12 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
     return RETURN_NO_ACTION_OK;
 }
 
-CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVP(Unit* pTarget)
+CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVP(Unit& target)
 {
     if (m_ai.CastSpell(HEROIC_STRIKE) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
 
-    return DoNextCombatManeuverPVE(pTarget); // TODO: bad idea perhaps, but better than the alternative
+    return DoNextCombatManeuverPVE(target); // TODO: bad idea perhaps, but better than the alternative
 }
 
 //Buff and rebuff shouts
@@ -578,7 +578,7 @@ bool PlayerbotWarriorAI::Pull(Unit& target)
 
     if (m_bot.GetDistance(&target, true, DIST_CALC_COMBAT_REACH_WITH_MELEE) > ATTACK_DISTANCE)
     {
-        if (!m_ai.In_Reach(&target, SHOOT))
+        if (!m_ai.In_Reach(target, SHOOT))
         {
             m_ai.TellMaster("Can't pull: I'm out of range.");
             return false;

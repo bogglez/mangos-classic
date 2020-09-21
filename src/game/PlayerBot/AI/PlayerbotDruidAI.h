@@ -87,8 +87,8 @@ class MANGOS_DLL_SPEC PlayerbotDruidAI : PlayerbotClassAI
         virtual ~PlayerbotDruidAI();
 
         // all combat actions go here
-        CombatManeuverReturns DoFirstCombatManeuver(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuver(Unit* pTarget) override;
+        CombatManeuverReturns DoFirstCombatManeuver(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuver(Unit& target) override;
         bool CanPull() override;
         bool Pull(Unit& target) override;
         uint32 Neutralize(uint8 creatureType) override;
@@ -100,29 +100,30 @@ class MANGOS_DLL_SPEC PlayerbotDruidAI : PlayerbotClassAI
         bool CastHoTOnTank();
 
     private:
-        CombatManeuverReturns DoFirstCombatManeuverPVE(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuverPVE(Unit* pTarget) override;
-        CombatManeuverReturns DoFirstCombatManeuverPVP(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuverPVP(Unit* pTarget) override;
+        CombatManeuverReturns DoFirstCombatManeuverPVE(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuverPVE(Unit& target) override;
+        CombatManeuverReturns DoFirstCombatManeuverPVP(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuverPVP(Unit& target) override;
 
-        CombatManeuverReturns CastSpell(uint32 nextAction, Unit* pTarget = nullptr) { return CastSpellNoRanged(nextAction, pTarget); }
+        CombatManeuverReturns CastSpell(uint32 nextAction, Unit& target) { return CastSpellNoRanged(nextAction, target); }
+        CombatManeuverReturns CastSpell(uint32 nextAction) { return CastSpellNoRanged(nextAction, m_bot); }
 
         // Combat Maneuver helper functions
-        CombatManeuverReturns _DoNextPVECombatManeuverBear(Unit* pTarget);
-        CombatManeuverReturns _DoNextPVECombatManeuverCat(Unit* pTarget);
-        CombatManeuverReturns _DoNextPVECombatManeuverSpellDPS(Unit* pTarget);
+        CombatManeuverReturns _DoNextPVECombatManeuverBear(Unit& target);
+        CombatManeuverReturns _DoNextPVECombatManeuverCat(Unit& target);
+        CombatManeuverReturns _DoNextPVECombatManeuverSpellDPS(Unit& target);
         CombatManeuverReturns _DoNextPVECombatManeuverHeal();
 
         // Heals the target based off its hps
-        CombatManeuverReturns HealPlayer(Player* target) override;
+        CombatManeuverReturns HealPlayer(Player& target) override;
         // Resurrects the target
-        CombatManeuverReturns ResurrectPlayer(Player* target) override;
+        CombatManeuverReturns ResurrectPlayer(Player& target) override;
         // Dispel disease or negative magic effects from an internally selected target
-        CombatManeuverReturns DispelPlayer(Player* target = nullptr);
+        CombatManeuverReturns FindAndDispelPlayer() override;
 
-        static bool BuffHelper(PlayerbotAI* ai, uint32 spellId, Unit* target);
+        static bool BuffHelper(PlayerbotAI* ai, uint32 spellId, Unit& target);
         // Callback method to reset shapeshift forms blocking buffs and heals
-        static void GoBuffForm(Player* self);
+        static void GoBuffForm(Player& self);
 
         //Assumes form based on spec
         uint8 CheckForms();

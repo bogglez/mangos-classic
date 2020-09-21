@@ -138,8 +138,8 @@ class MANGOS_DLL_SPEC PlayerbotWarlockAI : PlayerbotClassAI
         virtual ~PlayerbotWarlockAI();
 
         // all combat actions go here
-        CombatManeuverReturns DoFirstCombatManeuver(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuver(Unit* pTarget) override;
+        CombatManeuverReturns DoFirstCombatManeuver(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuver(Unit& target) override;
         uint32 Neutralize(uint8 creatureType) override;
 
         // all non combat actions go here, ex buffs, heals, rezzes
@@ -149,14 +149,15 @@ class MANGOS_DLL_SPEC PlayerbotWarlockAI : PlayerbotClassAI
         //void BuffPlayer(Player *target);
 
     private:
-        CombatManeuverReturns DoFirstCombatManeuverPVE(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuverPVE(Unit* pTarget) override;
-        CombatManeuverReturns DoFirstCombatManeuverPVP(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuverPVP(Unit* pTarget) override;
+        CombatManeuverReturns DoFirstCombatManeuverPVE(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuverPVE(Unit& target) override;
+        CombatManeuverReturns DoFirstCombatManeuverPVP(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuverPVP(Unit& target) override;
 
-        CombatManeuverReturns CastSpell(uint32 nextAction, Unit* pTarget = nullptr) { return CastSpellWand(nextAction, pTarget, SHOOT); }
+        CombatManeuverReturns CastSpell(uint32 nextAction, Unit& target) { return CastSpellWand(nextAction, target, SHOOT); }
+        CombatManeuverReturns CastSpell(uint32 nextAction) { return CastSpellWand(nextAction, m_bot, SHOOT); }
 
-        bool CheckCurse(Unit* target);
+        bool CheckCurse(Unit& target);
         void CheckDemon();
 
         // CURSES

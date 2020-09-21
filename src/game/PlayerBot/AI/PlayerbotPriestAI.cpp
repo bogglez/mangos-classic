@@ -81,7 +81,7 @@ PlayerbotPriestAI::PlayerbotPriestAI(Player& master, Player& bot, PlayerbotAI& a
 
 PlayerbotPriestAI::~PlayerbotPriestAI() {}
 
-CombatManeuverReturns PlayerbotPriestAI::DoFirstCombatManeuver(Unit* pTarget)
+CombatManeuverReturns PlayerbotPriestAI::DoFirstCombatManeuver(Unit& target)
 {
     // There are NPCs in BGs and Open World PvP, so don't filter this on PvP scenarios (of course if PvP targets anyone but tank, all bets are off anyway)
     // Wait until the tank says so, until any non-tank gains aggro or X seconds - whichever is shortest
@@ -89,8 +89,10 @@ CombatManeuverReturns PlayerbotPriestAI::DoFirstCombatManeuver(Unit* pTarget)
     {
         if (m_WaitUntil > m_ai.CurrentTime() && m_ai.GroupTankHoldsAggro())
         {
-            if (PlayerbotAI::ORDERS_HEAL & m_ai.GetCombatOrder())
-                return HealPlayer(GetHealTarget());
+            if (PlayerbotAI::ORDERS_HEAL & m_ai.GetCombatOrder()) {
+                Player* const target = GetHealTarget();
+                return HealPlayer(target ? *target : m_bot);
+            }
             else
                 return RETURN_NO_ACTION_OK; // wait it out
         }
@@ -114,16 +116,16 @@ CombatManeuverReturns PlayerbotPriestAI::DoFirstCombatManeuver(Unit* pTarget)
         case PlayerbotAI::SCENARIO_PVP_BG:
         case PlayerbotAI::SCENARIO_PVP_ARENA:
         case PlayerbotAI::SCENARIO_PVP_OPENWORLD:
-            return DoFirstCombatManeuverPVP(pTarget);
+            return DoFirstCombatManeuverPVP(target);
         case PlayerbotAI::SCENARIO_PVE:
         case PlayerbotAI::SCENARIO_PVE_ELITE:
         case PlayerbotAI::SCENARIO_PVE_RAID:
         default:
-            return DoFirstCombatManeuverPVE(pTarget);
+            return DoFirstCombatManeuverPVE(target);
     }
 }
 
-CombatManeuverReturns PlayerbotPriestAI::DoFirstCombatManeuverPVE(Unit* /*pTarget*/)
+CombatManeuverReturns PlayerbotPriestAI::DoFirstCombatManeuverPVE(Unit& target)
 {
     if (m_ai.IsHealer())
     {
@@ -134,15 +136,15 @@ CombatManeuverReturns PlayerbotPriestAI::DoFirstCombatManeuverPVE(Unit* /*pTarge
     return RETURN_NO_ACTION_OK;
 }
 
-CombatManeuverReturns PlayerbotPriestAI::DoFirstCombatManeuverPVP(Unit* /*pTarget*/)
+CombatManeuverReturns PlayerbotPriestAI::DoFirstCombatManeuverPVP(Unit& target)
 {
     return RETURN_NO_ACTION_OK;
 }
 
-CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuver(Unit* pTarget)
+CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuver(Unit& target)
 {
     // Face enemy, make sure bot is attacking
-    m_ai.FaceTarget(pTarget);
+    m_ai.FaceTarget(&target);
 
     switch (m_ai.GetScenarioType())
     {
@@ -150,18 +152,18 @@ CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuver(Unit* pTarget)
         case PlayerbotAI::SCENARIO_PVP_BG:
         case PlayerbotAI::SCENARIO_PVP_ARENA:
         case PlayerbotAI::SCENARIO_PVP_OPENWORLD:
-            return DoNextCombatManeuverPVP(pTarget);
+            return DoNextCombatManeuverPVP(target);
         case PlayerbotAI::SCENARIO_PVE:
         case PlayerbotAI::SCENARIO_PVE_ELITE:
         case PlayerbotAI::SCENARIO_PVE_RAID:
         default:
-            return DoNextCombatManeuverPVE(pTarget);
+            return DoNextCombatManeuverPVE(target);
     }
 }
 
-CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVE(Unit* pTarget)
+CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVE(Unit& target)
 {
-    bool meleeReach = m_bot.CanReachWithMeleeAttack(pTarget);
+    bool meleeReach = m_bot.CanReachWithMeleeAttack(&target);
     uint32 spec = m_bot.GetSpec();
 
     // Define a tank bot will look at
@@ -191,11 +193,11 @@ CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVE(Unit* pTarget)
         // Buff tank first
         if (mainTank)
         {
-            if (m_ai.In_Reach(mainTank, FEAR_WARD) && !mainTank->HasAura(FEAR_WARD, EFFECT_INDEX_0) && CastSpell(FEAR_WARD, mainTank))
+            if (m_ai.In_Reach(*mainTank, FEAR_WARD) && !mainTank->HasAura(FEAR_WARD, EFFECT_INDEX_0) && CastSpell(FEAR_WARD, *mainTank))
                 return RETURN_CONTINUE;
         }
         // Else try to buff master
-        if (m_ai.In_Reach(&m_master, FEAR_WARD) && !m_master.HasAura(FEAR_WARD, EFFECT_INDEX_0) && CastSpell(FEAR_WARD, &m_master))
+        if (m_ai.In_Reach(m_master, FEAR_WARD) && !m_master.HasAura(FEAR_WARD, EFFECT_INDEX_0) && CastSpell(FEAR_WARD, m_master))
             return RETURN_CONTINUE;
     }
 
@@ -205,7 +207,7 @@ CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVE(Unit* pTarget)
     {
         if (FADE > 0 && !m_bot.HasAura(FADE, EFFECT_INDEX_0) && m_bot.IsSpellReady(FADE))
         {
-            if (CastSpell(FADE, &m_bot))
+            if (CastSpell(FADE, m_bot))
             {
                 m_ai.TellMaster("I'm casting fade.");
                 return RETURN_CONTINUE;
@@ -226,13 +228,13 @@ CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVE(Unit* pTarget)
             else if (m_ai.IsHealer()) // Even if any other RETURN_ANY_OK - aside from RETURN_CONTINUE
                 m_ai.TellMaster("Your healer's about TO DIE. HELP ME.");
         }
-        if (m_ai.GetHealthPercent() < 35 && DESPERATE_PRAYER > 0 && m_ai.In_Reach(&m_bot, DESPERATE_PRAYER) && CastSpell(DESPERATE_PRAYER, &m_bot) & RETURN_CONTINUE)
+        if (m_ai.GetHealthPercent() < 35 && DESPERATE_PRAYER > 0 && m_ai.In_Reach(m_bot, DESPERATE_PRAYER) && CastSpell(DESPERATE_PRAYER, m_bot) & RETURN_CONTINUE)
         {
             m_ai.TellMaster("I'm casting desperate prayer.");
             return RETURN_CONTINUE;
         }
         // Night Elves priest bot can also cast Elune's Grace to improve his/her dodge rating
-        if (ELUNES_GRACE && !m_bot.HasAura(ELUNES_GRACE, EFFECT_INDEX_0) && m_bot.IsSpellReady(ELUNES_GRACE) && CastSpell(ELUNES_GRACE, &m_bot))
+        if (ELUNES_GRACE && !m_bot.HasAura(ELUNES_GRACE, EFFECT_INDEX_0) && m_bot.IsSpellReady(ELUNES_GRACE) && CastSpell(ELUNES_GRACE, m_bot))
             return RETURN_CONTINUE;
 
         // If enemy comes in melee reach
@@ -251,13 +253,13 @@ CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVE(Unit* pTarget)
 
                 // Not an elite. You could insert PSYCHIC SCREAM here but in any PvE situation that's 90-95% likely
                 // to worsen the situation for the group. ... So please don't.
-                return CastSpell(SHOOT, pTarget);
+                return CastSpell(SHOOT, target);
             }
         }
     }
 
     // Dispel magic/disease
-    if (m_ai.HasDispelOrder() && DispelPlayer() & RETURN_CONTINUE)
+    if (m_ai.HasDispelOrder() && FindAndDispelPlayer() & RETURN_CONTINUE)
         return RETURN_CONTINUE;
 
     // Damage tweaking for healers
@@ -269,97 +271,97 @@ CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVE(Unit* pTarget)
 
         // No one needs to be healed: do small damage instead
         // If target is elite and not handled by MT: do nothing
-        if (m_ai.IsElite(pTarget) && mainTank && mainTank->GetVictim() != pTarget)
+        if (m_ai.IsElite(&target) && mainTank && mainTank->GetVictim() != &target)
             return RETURN_NO_ACTION_OK;
 
         // Cast Shadow Word:Pain on current target and keep its up (if mana >= 40% or target HP < 15%)
-        if (SHADOW_WORD_PAIN > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(pTarget, SHADOW_WORD_PAIN) && !pTarget->HasAura(SHADOW_WORD_PAIN, EFFECT_INDEX_0) &&
-                (pTarget->GetHealthPercent() < 15 || m_ai.GetManaPercent() >= 40) && CastSpell(SHADOW_WORD_PAIN, pTarget))
+        if (SHADOW_WORD_PAIN > 0 && !PlayerbotAI::IsImmuneToSchool(&target, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(target, SHADOW_WORD_PAIN) && !target.HasAura(SHADOW_WORD_PAIN, EFFECT_INDEX_0) &&
+                (target.GetHealthPercent() < 15 || m_ai.GetManaPercent() >= 40) && CastSpell(SHADOW_WORD_PAIN, target))
             return RETURN_CONTINUE;
         else // else shoot at it
-            return CastSpell(SHOOT, pTarget);
+            return CastSpell(SHOOT, target);
     }
 
     // Damage Spells
     switch (spec)
     {
         case PRIEST_SPEC_HOLY:
-            if (HOLY_FIRE > 0 && m_ai.In_Reach(pTarget, HOLY_FIRE) && !pTarget->HasAura(HOLY_FIRE, EFFECT_INDEX_0) && CastSpell(HOLY_FIRE, pTarget))
+            if (HOLY_FIRE > 0 && m_ai.In_Reach(target, HOLY_FIRE) && !target.HasAura(HOLY_FIRE, EFFECT_INDEX_0) && CastSpell(HOLY_FIRE, target))
                 return RETURN_CONTINUE;
-            if (SMITE > 0 && m_ai.In_Reach(pTarget, SMITE) && CastSpell(SMITE, pTarget))
+            if (SMITE > 0 && m_ai.In_Reach(target, SMITE) && CastSpell(SMITE, target))
                 return RETURN_CONTINUE;
-            //if (HOLY_NOVA > 0 && m_ai.In_Reach(pTarget,HOLY_NOVA) && meleeReach && m_ai.CastSpell(HOLY_NOVA) == SPELL_CAST_OK)
+            //if (HOLY_NOVA > 0 && m_ai.In_Reach(target,HOLY_NOVA) && meleeReach && m_ai.CastSpell(HOLY_NOVA) == SPELL_CAST_OK)
             //    return RETURN_CONTINUE;
             break;
 
         case PRIEST_SPEC_SHADOW:
-            if (DEVOURING_PLAGUE > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(pTarget, DEVOURING_PLAGUE) && !pTarget->HasAura(DEVOURING_PLAGUE, EFFECT_INDEX_0) && CastSpell(DEVOURING_PLAGUE, pTarget))
+            if (DEVOURING_PLAGUE > 0 && !PlayerbotAI::IsImmuneToSchool(&target, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(target, DEVOURING_PLAGUE) && !target.HasAura(DEVOURING_PLAGUE, EFFECT_INDEX_0) && CastSpell(DEVOURING_PLAGUE, target))
                 return RETURN_CONTINUE;
-            if (SHADOW_WORD_PAIN > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(pTarget, SHADOW_WORD_PAIN) && !pTarget->HasAura(SHADOW_WORD_PAIN, EFFECT_INDEX_0) && CastSpell(SHADOW_WORD_PAIN, pTarget))
+            if (SHADOW_WORD_PAIN > 0 && !PlayerbotAI::IsImmuneToSchool(&target, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(target, SHADOW_WORD_PAIN) && !target.HasAura(SHADOW_WORD_PAIN, EFFECT_INDEX_0) && CastSpell(SHADOW_WORD_PAIN, target))
                 return RETURN_CONTINUE;
-            if (MIND_BLAST > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(pTarget, MIND_BLAST) && (m_bot.IsSpellReady(MIND_BLAST)) && CastSpell(MIND_BLAST, pTarget))
+            if (MIND_BLAST > 0 && !PlayerbotAI::IsImmuneToSchool(&target, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(target, MIND_BLAST) && (m_bot.IsSpellReady(MIND_BLAST)) && CastSpell(MIND_BLAST, target))
                 return RETURN_CONTINUE;
-            if (MIND_FLAY > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(pTarget, MIND_FLAY) && CastSpell(MIND_FLAY, pTarget))
+            if (MIND_FLAY > 0 && !PlayerbotAI::IsImmuneToSchool(&target, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(target, MIND_FLAY) && CastSpell(MIND_FLAY, target))
             {
                 m_ai.SetIgnoreUpdateTime(3);
                 return RETURN_CONTINUE;
             }
-            if (SHADOWFORM == 0 && MIND_FLAY == 0 && SMITE > 0 && m_ai.In_Reach(pTarget, SMITE) && CastSpell(SMITE, pTarget)) // low levels
+            if (SHADOWFORM == 0 && MIND_FLAY == 0 && SMITE > 0 && m_ai.In_Reach(target, SMITE) && CastSpell(SMITE, target)) // low levels
                 return RETURN_CONTINUE;
             break;
 
         case PRIEST_SPEC_DISCIPLINE:
-            if (POWER_INFUSION > 0 && m_ai.In_Reach(&m_master, POWER_INFUSION) && CastSpell(POWER_INFUSION, &m_master)) // TODO: just master?
+            if (POWER_INFUSION > 0 && m_ai.In_Reach(m_master, POWER_INFUSION) && CastSpell(POWER_INFUSION, m_master)) // TODO: just master?
                 return RETURN_CONTINUE;
-            if (INNER_FOCUS > 0 && m_ai.In_Reach(&m_bot, INNER_FOCUS) && !m_bot.HasAura(INNER_FOCUS, EFFECT_INDEX_0) && CastSpell(INNER_FOCUS, &m_bot))
+            if (INNER_FOCUS > 0 && m_ai.In_Reach(m_bot, INNER_FOCUS) && !m_bot.HasAura(INNER_FOCUS, EFFECT_INDEX_0) && CastSpell(INNER_FOCUS, m_bot))
                 return RETURN_CONTINUE;
-            if (SMITE > 0 && m_ai.In_Reach(pTarget, SMITE) && CastSpell(SMITE, pTarget))
+            if (SMITE > 0 && m_ai.In_Reach(target, SMITE) && CastSpell(SMITE, target))
                 return RETURN_CONTINUE;
             break;
     }
 
     // No spec due to low level OR no spell found yet
-    if (MIND_BLAST > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(pTarget, MIND_BLAST) && (m_bot.IsSpellReady(MIND_BLAST)) && CastSpell(MIND_BLAST, pTarget))
+    if (MIND_BLAST > 0 && !PlayerbotAI::IsImmuneToSchool(&target, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(target, MIND_BLAST) && (m_bot.IsSpellReady(MIND_BLAST)) && CastSpell(MIND_BLAST, target))
         return RETURN_CONTINUE;
-    if (SHADOW_WORD_PAIN > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(pTarget, SHADOW_WORD_PAIN) && !pTarget->HasAura(SHADOW_WORD_PAIN, EFFECT_INDEX_0) && CastSpell(SHADOW_WORD_PAIN, pTarget))
+    if (SHADOW_WORD_PAIN > 0 && !PlayerbotAI::IsImmuneToSchool(&target, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(target, SHADOW_WORD_PAIN) && !target.HasAura(SHADOW_WORD_PAIN, EFFECT_INDEX_0) && CastSpell(SHADOW_WORD_PAIN, target))
         return RETURN_CONTINUE;
-    if (MIND_FLAY > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(pTarget, MIND_FLAY) && CastSpell(MIND_FLAY, pTarget))
+    if (MIND_FLAY > 0 && !PlayerbotAI::IsImmuneToSchool(&target, SPELL_SCHOOL_MASK_SHADOW) && m_ai.In_Reach(target, MIND_FLAY) && CastSpell(MIND_FLAY, target))
     {
         m_ai.SetIgnoreUpdateTime(3);
         return RETURN_CONTINUE;
     }
-    if (SHADOWFORM == 0 && SMITE > 0 && m_ai.In_Reach(pTarget, SMITE) && CastSpell(SMITE, pTarget))
+    if (SHADOWFORM == 0 && SMITE > 0 && m_ai.In_Reach(target, SMITE) && CastSpell(SMITE, target))
         return RETURN_CONTINUE;
 
     // Default: shoot with wand
-    return CastSpell(SHOOT, pTarget);
+    return CastSpell(SHOOT, target);
 } // end DoNextCombatManeuver
 
-CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVP(Unit* pTarget)
+CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVP(Unit& target)
 {
     switch (m_ai.GetScenarioType())
     {
         case PlayerbotAI::SCENARIO_PVP_DUEL:
             // TODO: spec tweaking
-            if (m_ai.HasAura(SCREAM, *pTarget) && m_ai.GetHealthPercent() < 60 && HEAL && m_ai.In_Reach(pTarget, HEAL) && CastSpell(HEAL) & RETURN_ANY_OK)
+            if (m_ai.HasAura(SCREAM, target) && m_ai.GetHealthPercent() < 60 && HEAL && m_ai.In_Reach(target, HEAL) && CastSpell(HEAL) & RETURN_ANY_OK)
                 return RETURN_CONTINUE;
 
-            if (SHADOW_WORD_PAIN && m_ai.In_Reach(pTarget, SHADOW_WORD_PAIN) && CastSpell(SHADOW_WORD_PAIN) & RETURN_ANY_OK) // TODO: Check whether enemy has it active yet
+            if (SHADOW_WORD_PAIN && m_ai.In_Reach(target, SHADOW_WORD_PAIN) && CastSpell(SHADOW_WORD_PAIN) & RETURN_ANY_OK) // TODO: Check whether enemy has it active yet
                 return RETURN_CONTINUE;
 
-            if (m_ai.GetHealthPercent() < 80 && RENEW && m_ai.In_Reach(pTarget, RENEW) && CastSpell(RENEW) & RETURN_ANY_OK) // TODO: Check whether you have renew active on you
+            if (m_ai.GetHealthPercent() < 80 && RENEW && m_ai.In_Reach(target, RENEW) && CastSpell(RENEW) & RETURN_ANY_OK) // TODO: Check whether you have renew active on you
                 return RETURN_CONTINUE;
 
-            if (SCREAM && m_ai.In_Reach(pTarget, SCREAM) && CastSpell(SCREAM) & RETURN_ANY_OK) // TODO: Check for cooldown
+            if (SCREAM && m_ai.In_Reach(target, SCREAM) && CastSpell(SCREAM) & RETURN_ANY_OK) // TODO: Check for cooldown
                 return RETURN_CONTINUE;
 
-            if (MIND_BLAST && m_ai.In_Reach(pTarget, MIND_BLAST) && CastSpell(MIND_BLAST) & RETURN_ANY_OK) // TODO: Check for cooldown
+            if (MIND_BLAST && m_ai.In_Reach(target, MIND_BLAST) && CastSpell(MIND_BLAST) & RETURN_ANY_OK) // TODO: Check for cooldown
                 return RETURN_CONTINUE;
 
-            if (m_ai.GetHealthPercent() < 50 && GREATER_HEAL && m_ai.In_Reach(pTarget, GREATER_HEAL) && CastSpell(GREATER_HEAL) & RETURN_ANY_OK)
+            if (m_ai.GetHealthPercent() < 50 && GREATER_HEAL && m_ai.In_Reach(target, GREATER_HEAL) && CastSpell(GREATER_HEAL) & RETURN_ANY_OK)
                 return RETURN_CONTINUE;
 
-            if (SMITE && m_ai.In_Reach(pTarget, SMITE) && CastSpell(SMITE) & RETURN_ANY_OK)
+            if (SMITE && m_ai.In_Reach(target, SMITE) && CastSpell(SMITE) & RETURN_ANY_OK)
                 return RETURN_CONTINUE;
 
             m_ai.TellMaster("Couldn't find a spell to cast while dueling");
@@ -367,16 +369,16 @@ CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVP(Unit* pTarget)
             break;
     }
 
-    return DoNextCombatManeuverPVE(pTarget); // TODO: bad idea perhaps, but better than the alternative
+    return DoNextCombatManeuverPVE(target); // TODO: bad idea perhaps, but better than the alternative
 }
 
-CombatManeuverReturns PlayerbotPriestAI::HealPlayer(Player* target)
+CombatManeuverReturns PlayerbotPriestAI::HealPlayer(Player& target)
 {
     CombatManeuverReturns r = PlayerbotClassAI::HealPlayer(target);
     if (r != RETURN_NO_ACTION_OK)
         return r;
 
-    uint8 hp = target->GetHealthPercent();
+    uint8 hp = target.GetHealthPercent();
 
     if (hp >= 90)
         return RETURN_NO_ACTION_OK;
@@ -390,24 +392,24 @@ CombatManeuverReturns PlayerbotPriestAI::HealPlayer(Player* target)
             && m_bot.GetPlayerbotAI()->GetMovementOrder() != PlayerbotAI::MOVEMENT_STAY
             && !m_ai.In_Reach(target, FLASH_HEAL))
     {
-        m_bot.GetMotionMaster()->MoveFollow(target, 39.0f, m_bot.GetOrientation());
+        m_bot.GetMotionMaster()->MoveFollow(&target, 39.0f, m_bot.GetOrientation());
         return RETURN_CONTINUE;
     }
 
     // Get a free and more efficient heal if needed: low mana for bot or average health for target
     if (m_ai.IsInCombat() && (hp < 50 || m_ai.GetManaPercent() < 40))
-        if (INNER_FOCUS > 0 && m_bot.IsSpellReady(INNER_FOCUS) && !m_bot.HasAura(INNER_FOCUS, EFFECT_INDEX_0) && CastSpell(INNER_FOCUS, &m_bot))
+        if (INNER_FOCUS > 0 && m_bot.IsSpellReady(INNER_FOCUS) && !m_bot.HasAura(INNER_FOCUS, EFFECT_INDEX_0) && CastSpell(INNER_FOCUS))
             return RETURN_CONTINUE;
 
-    if (hp < 25 && POWER_WORD_SHIELD > 0 && m_ai.IsInCombat() && m_ai.In_Reach(target, POWER_WORD_SHIELD) && !m_bot.HasAura(POWER_WORD_SHIELD, EFFECT_INDEX_0) && !target->HasAura(WEAKNED_SOUL, EFFECT_INDEX_0) && m_ai.CastSpell(POWER_WORD_SHIELD, *target) == SPELL_CAST_OK)
+    if (hp < 25 && POWER_WORD_SHIELD > 0 && m_ai.IsInCombat() && m_ai.In_Reach(target, POWER_WORD_SHIELD) && !m_bot.HasAura(POWER_WORD_SHIELD, EFFECT_INDEX_0) && !target.HasAura(WEAKNED_SOUL, EFFECT_INDEX_0) && m_ai.CastSpell(POWER_WORD_SHIELD, target) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
-    if (hp < 35 && FLASH_HEAL > 0 && m_ai.In_Reach(target, FLASH_HEAL) && m_ai.CastSpell(FLASH_HEAL, *target) == SPELL_CAST_OK)
+    if (hp < 35 && FLASH_HEAL > 0 && m_ai.In_Reach(target, FLASH_HEAL) && m_ai.CastSpell(FLASH_HEAL, target) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
-    if (hp < 50 && GREATER_HEAL > 0 && m_ai.In_Reach(target, GREATER_HEAL) && m_ai.CastSpell(GREATER_HEAL, *target) == SPELL_CAST_OK)
+    if (hp < 50 && GREATER_HEAL > 0 && m_ai.In_Reach(target, GREATER_HEAL) && m_ai.CastSpell(GREATER_HEAL, target) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
-    if (hp < 70 && HEAL > 0 && m_ai.In_Reach(target, HEAL) && m_ai.CastSpell(HEAL, *target) == SPELL_CAST_OK)
+    if (hp < 70 && HEAL > 0 && m_ai.In_Reach(target, HEAL) && m_ai.CastSpell(HEAL, target) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
-    if (hp < 90 && RENEW > 0 && m_ai.In_Reach(target, RENEW) && !target->HasAura(RENEW) && m_ai.CastSpell(RENEW, *target) == SPELL_CAST_OK)
+    if (hp < 90 && RENEW > 0 && m_ai.In_Reach(target, RENEW) && !target.HasAura(RENEW) && m_ai.CastSpell(RENEW, target) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
 
     // Group heal. Not really useful until a group check is available?
@@ -417,7 +419,7 @@ CombatManeuverReturns PlayerbotPriestAI::HealPlayer(Player* target)
     return RETURN_NO_ACTION_OK;
 } // end HealTarget
 
-CombatManeuverReturns PlayerbotPriestAI::ResurrectPlayer(Player* target)
+CombatManeuverReturns PlayerbotPriestAI::ResurrectPlayer(Player& target)
 {
     CombatManeuverReturns r = PlayerbotClassAI::ResurrectPlayer(target);
     if (r != RETURN_NO_ACTION_OK)
@@ -426,38 +428,38 @@ CombatManeuverReturns PlayerbotPriestAI::ResurrectPlayer(Player* target)
     if (m_ai.IsInCombat())     // Just in case as this was supposedly checked before calling this function
         return RETURN_NO_ACTION_ERROR;
 
-    if (RESURRECTION > 0 && m_ai.In_Reach(target, RESURRECTION) && m_ai.CastSpell(RESURRECTION, *target) == SPELL_CAST_OK)
+    if (RESURRECTION > 0 && m_ai.In_Reach(target, RESURRECTION) && m_ai.CastSpell(RESURRECTION, target) == SPELL_CAST_OK)
     {
         std::string msg = "Resurrecting ";
-        msg += target->GetName();
+        msg += target.GetName();
         m_bot.Say(msg, LANG_UNIVERSAL);
         return RETURN_CONTINUE;
     }
     return RETURN_NO_ACTION_ERROR; // not error per se - possibly just OOM
 }
 
-CombatManeuverReturns PlayerbotPriestAI::DispelPlayer(Player* /*target*/)
+CombatManeuverReturns PlayerbotPriestAI::FindAndDispelPlayer()
 {
     // Remove negative magic on group members
     if (Player* cursedTarget = GetDispelTarget(DISPEL_MAGIC))
     {
-        CombatManeuverReturns r = PlayerbotClassAI::DispelPlayer(cursedTarget);
+        CombatManeuverReturns r = PlayerbotClassAI::DispelPlayer(*cursedTarget);
         if (r != RETURN_NO_ACTION_OK)
             return r;
 
-        if (PRIEST_DISPEL_MAGIC > 0 && CastSpell(PRIEST_DISPEL_MAGIC, cursedTarget))
+        if (PRIEST_DISPEL_MAGIC > 0 && CastSpell(PRIEST_DISPEL_MAGIC, *cursedTarget))
             return RETURN_CONTINUE;
     }
 
     // Remove disease on group members
     if (Player* diseasedTarget = GetDispelTarget(DISPEL_DISEASE))
     {
-        CombatManeuverReturns r = PlayerbotClassAI::DispelPlayer(diseasedTarget);
+        CombatManeuverReturns r = PlayerbotClassAI::DispelPlayer(*diseasedTarget);
         if (r != RETURN_NO_ACTION_OK)
             return r;
 
         uint32 cure = ABOLISH_DISEASE > 0 ? ABOLISH_DISEASE : CURE_DISEASE;
-        if (cure > 0 && CastSpell(cure, diseasedTarget))
+        if (cure > 0 && CastSpell(cure, *diseasedTarget))
             return RETURN_CONTINUE;
     }
 
@@ -475,11 +477,12 @@ void PlayerbotPriestAI::DoNonCombatActions()
         return;
 
     // Dispel magic/disease
-    if (m_ai.HasDispelOrder() && DispelPlayer() & RETURN_CONTINUE)
+    if (m_ai.HasDispelOrder() && FindAndDispelPlayer() & RETURN_CONTINUE)
         return;
 
     // Revive
-    if (ResurrectPlayer(GetResurrectionTarget()) & RETURN_CONTINUE)
+    Player* const resurrectionTarget = GetResurrectionTarget();
+    if (resurrectionTarget && ResurrectPlayer(*resurrectionTarget) & RETURN_CONTINUE)
         return;
 
     // After revive
@@ -491,14 +494,15 @@ void PlayerbotPriestAI::DoNonCombatActions()
     // Heal
     if (m_ai.IsHealer())
     {
-        if (HealPlayer(GetHealTarget()) & RETURN_CONTINUE)
+        Player* const target = GetHealTarget();
+        if (HealPlayer(target ? *target : m_bot) & RETURN_CONTINUE)
             return;// RETURN_CONTINUE;
     }
     else
     {
         // Is this desirable? Debatable.
         // TODO: In a group/raid with a healer you'd want this bot to focus on DPS (it's not specced/geared for healing either)
-        if (HealPlayer(&m_bot) & RETURN_CONTINUE)
+        if (HealPlayer(m_bot) & RETURN_CONTINUE)
             return;// RETURN_CONTINUE;
     }
 
@@ -541,14 +545,13 @@ void PlayerbotPriestAI::DoNonCombatActions()
 } // end DoNonCombatActions
 
 // TODO: this and mage's BuffHelper are identical and thus could probably go in PlayerbotClassAI.cpp somewhere
-bool PlayerbotPriestAI::BuffHelper(PlayerbotAI* ai, uint32 spellId, Unit* target)
+bool PlayerbotPriestAI::BuffHelper(PlayerbotAI* ai, uint32 spellId, Unit& target)
 {
     if (!ai)          return false;
     if (spellId == 0) return false;
-    if (!target)      return false;
 
-    Pet* pet = target->GetPet();
-    if (pet && !pet->HasAuraType(SPELL_AURA_MOD_UNATTACKABLE) && ai->Buff(spellId, pet) == SPELL_CAST_OK)
+    Pet* pet = target.GetPet();
+    if (pet && !pet->HasAuraType(SPELL_AURA_MOD_UNATTACKABLE) && ai->Buff(spellId, *pet) == SPELL_CAST_OK)
         return true;
 
     return ai->Buff(spellId, target) == SPELL_CAST_OK;
@@ -559,8 +562,12 @@ bool PlayerbotPriestAI::CastHoTOnTank()
     if (!m_ai.IsHealer()) return false;
 
     // Priest HoTs: Renew, Penance (with talents, channeled)
-    if (RENEW > 0 && m_ai.In_Reach(m_ai.GetGroupTank(), RENEW))
-        return (RETURN_CONTINUE & CastSpell(RENEW, m_ai.GetGroupTank()));
+    if (RENEW > 0) {
+        Player* const tank = m_ai.GetGroupTank();
+        if (m_ai.In_Reach(*tank, RENEW)) {
+            return (RETURN_CONTINUE & CastSpell(RENEW, *tank));
+        }
+    }
 
     return false;
 }

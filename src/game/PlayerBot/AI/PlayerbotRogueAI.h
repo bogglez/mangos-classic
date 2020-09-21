@@ -81,17 +81,17 @@ class MANGOS_DLL_SPEC PlayerbotRogueAI : PlayerbotClassAI
         virtual ~PlayerbotRogueAI();
 
         // all combat actions go here
-        CombatManeuverReturns DoFirstCombatManeuver(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuver(Unit* pTarget) override;
+        CombatManeuverReturns DoFirstCombatManeuver(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuver(Unit& target) override;
 
         // all non combat actions go here, ex buffs, heals, rezzes
         void DoNonCombatActions() override;
 
     private:
-        CombatManeuverReturns DoFirstCombatManeuverPVE(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuverPVE(Unit* pTarget) override;
-        CombatManeuverReturns DoFirstCombatManeuverPVP(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuverPVP(Unit* pTarget) override;
+        CombatManeuverReturns DoFirstCombatManeuverPVE(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuverPVE(Unit& target) override;
+        CombatManeuverReturns DoFirstCombatManeuverPVP(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuverPVP(Unit& target) override;
         Item* FindPoison() const;
 
         // COMBAT

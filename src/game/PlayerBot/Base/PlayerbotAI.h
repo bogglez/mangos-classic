@@ -457,11 +457,11 @@ class MANGOS_DLL_SPEC PlayerbotAI
         SpellCastResult CastSpell(uint32 spellId);
         SpellCastResult CastSpell(uint32 spellId, Unit& target);
         SpellCastResult CheckBotCast(const SpellEntry* sInfo);
-        SpellCastResult CastPetSpell(uint32 spellId, Unit* target = nullptr);
-        SpellCastResult Buff(uint32 spellId, Unit* target, void (*beforeCast)(Player*) = nullptr);
+        SpellCastResult CastPetSpell(uint32 spellId, Unit& target);
+        SpellCastResult Buff(uint32 spellId, Unit& target, void (*beforeCast)(Player&) = nullptr);
         SpellCastResult SelfBuff(uint32 spellId);
-        bool In_Range(Unit* Target, uint32 spellId);
-        bool In_Reach(Unit* Target, uint32 spellId);
+        bool In_Range(Unit& Target, uint32 spellId);
+        bool In_Reach(Unit& Target, uint32 spellId);
         bool CanReachWithSpellAttack(Unit* target);
 
         void UseItem(Item* item, uint16 targetFlag, ObjectGuid targetGUID);

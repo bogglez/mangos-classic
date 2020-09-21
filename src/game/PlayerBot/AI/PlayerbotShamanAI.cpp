@@ -98,7 +98,7 @@ PlayerbotShamanAI::PlayerbotShamanAI(Player& master, Player& bot, PlayerbotAI& a
 
 PlayerbotShamanAI::~PlayerbotShamanAI() {}
 
-CombatManeuverReturns PlayerbotShamanAI::DoFirstCombatManeuver(Unit* pTarget)
+CombatManeuverReturns PlayerbotShamanAI::DoFirstCombatManeuver(Unit& target)
 {
     // There are NPCs in BGs and Open World PvP, so don't filter this on PvP scenarios (of course if PvP targets anyone but tank, all bets are off anyway)
     // Wait until the tank says so, until any non-tank gains aggro or X seconds - whichever is shortest
@@ -106,8 +106,10 @@ CombatManeuverReturns PlayerbotShamanAI::DoFirstCombatManeuver(Unit* pTarget)
     {
         if (m_WaitUntil > m_ai.CurrentTime() && m_ai.GroupTankHoldsAggro())
         {
-            if (PlayerbotAI::ORDERS_HEAL & m_ai.GetCombatOrder())
-                return HealPlayer(GetHealTarget());
+            if (PlayerbotAI::ORDERS_HEAL & m_ai.GetCombatOrder()) {
+                Player* const healTarget = GetHealTarget();
+                return HealPlayer(healTarget ? *healTarget : m_bot);
+            }
             else
                 return RETURN_NO_ACTION_OK; // wait it out
         }
@@ -131,29 +133,29 @@ CombatManeuverReturns PlayerbotShamanAI::DoFirstCombatManeuver(Unit* pTarget)
         case PlayerbotAI::SCENARIO_PVP_BG:
         case PlayerbotAI::SCENARIO_PVP_ARENA:
         case PlayerbotAI::SCENARIO_PVP_OPENWORLD:
-            return DoFirstCombatManeuverPVP(pTarget);
+            return DoFirstCombatManeuverPVP(target);
         case PlayerbotAI::SCENARIO_PVE:
         case PlayerbotAI::SCENARIO_PVE_ELITE:
         case PlayerbotAI::SCENARIO_PVE_RAID:
         default:
-            return DoFirstCombatManeuverPVE(pTarget);
+            return DoFirstCombatManeuverPVE(target);
     }
 }
 
-CombatManeuverReturns PlayerbotShamanAI::DoFirstCombatManeuverPVE(Unit* /*pTarget*/)
+CombatManeuverReturns PlayerbotShamanAI::DoFirstCombatManeuverPVE(Unit& target)
 {
     return RETURN_NO_ACTION_OK;
 }
 
-CombatManeuverReturns PlayerbotShamanAI::DoFirstCombatManeuverPVP(Unit* /*pTarget*/)
+CombatManeuverReturns PlayerbotShamanAI::DoFirstCombatManeuverPVP(Unit& target)
 {
     return RETURN_NO_ACTION_OK;
 }
 
-CombatManeuverReturns PlayerbotShamanAI::DoNextCombatManeuver(Unit* pTarget)
+CombatManeuverReturns PlayerbotShamanAI::DoNextCombatManeuver(Unit& target)
 {
     // Face enemy, make sure bot is attacking
-    m_ai.FaceTarget(pTarget);
+    m_ai.FaceTarget(&target);
 
     switch (m_ai.GetScenarioType())
     {
@@ -161,16 +163,16 @@ CombatManeuverReturns PlayerbotShamanAI::DoNextCombatManeuver(Unit* pTarget)
         case PlayerbotAI::SCENARIO_PVP_BG:
         case PlayerbotAI::SCENARIO_PVP_ARENA:
         case PlayerbotAI::SCENARIO_PVP_OPENWORLD:
-            return DoNextCombatManeuverPVP(pTarget);
+            return DoNextCombatManeuverPVP(target);
         case PlayerbotAI::SCENARIO_PVE:
         case PlayerbotAI::SCENARIO_PVE_ELITE:
         case PlayerbotAI::SCENARIO_PVE_RAID:
         default:
-            return DoNextCombatManeuverPVE(pTarget);
+            return DoNextCombatManeuverPVE(target);
     }
 }
 
-CombatManeuverReturns PlayerbotShamanAI::DoNextCombatManeuverPVE(Unit* pTarget)
+CombatManeuverReturns PlayerbotShamanAI::DoNextCombatManeuverPVE(Unit& target)
 {
     uint32 spec = m_bot.GetSpec();
 
@@ -181,7 +183,7 @@ CombatManeuverReturns PlayerbotShamanAI::DoNextCombatManeuverPVE(Unit* pTarget)
         m_ai.SetCombatStyle(PlayerbotAI::COMBAT_MELEE);
 
     // Dispel disease/poison
-    if (m_ai.HasDispelOrder() && DispelPlayer() & RETURN_CONTINUE)
+    if (m_ai.HasDispelOrder() && FindAndDispelPlayer() & RETURN_CONTINUE)
         return RETURN_CONTINUE;
 
     // Heal (try to pick a target by on common rules, than heal using each PlayerbotClassAI HealPlayer() method)
@@ -195,14 +197,14 @@ CombatManeuverReturns PlayerbotShamanAI::DoNextCombatManeuverPVE(Unit* pTarget)
     switch (spec)
     {
         case SHAMAN_SPEC_ENHANCEMENT:
-            if (STORMSTRIKE > 0 && (m_bot.IsSpellReady(STORMSTRIKE)) && m_ai.CastSpell(STORMSTRIKE, *pTarget) == SPELL_CAST_OK)
+            if (STORMSTRIKE > 0 && (m_bot.IsSpellReady(STORMSTRIKE)) && m_ai.CastSpell(STORMSTRIKE, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            if (FLAME_SHOCK > 0 && (!pTarget->HasAura(FLAME_SHOCK)) && m_ai.CastSpell(FLAME_SHOCK, *pTarget) == SPELL_CAST_OK)
+            if (FLAME_SHOCK > 0 && (!target.HasAura(FLAME_SHOCK)) && m_ai.CastSpell(FLAME_SHOCK, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            if (EARTH_SHOCK > 0 && (m_bot.IsSpellReady(EARTH_SHOCK)) && m_ai.CastSpell(EARTH_SHOCK, *pTarget) == SPELL_CAST_OK)
+            if (EARTH_SHOCK > 0 && (m_bot.IsSpellReady(EARTH_SHOCK)) && m_ai.CastSpell(EARTH_SHOCK, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
 
-            /*if (FOCUSED > 0 && m_ai.CastSpell(FOCUSED, *pTarget) == SPELL_CAST_OK)
+            /*if (FOCUSED > 0 && m_ai.CastSpell(FOCUSED, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;*/
             break;
 
@@ -210,35 +212,35 @@ CombatManeuverReturns PlayerbotShamanAI::DoNextCombatManeuverPVE(Unit* pTarget)
         // fall through to elemental
 
         case SHAMAN_SPEC_ELEMENTAL:
-            if (FLAME_SHOCK > 0 && (!pTarget->HasAura(FLAME_SHOCK)) && m_ai.CastSpell(FLAME_SHOCK, *pTarget) == SPELL_CAST_OK)
+            if (FLAME_SHOCK > 0 && (!target.HasAura(FLAME_SHOCK)) && m_ai.CastSpell(FLAME_SHOCK, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            if (LIGHTNING_BOLT > 0 && m_ai.CastSpell(LIGHTNING_BOLT, *pTarget) == SPELL_CAST_OK)
+            if (LIGHTNING_BOLT > 0 && m_ai.CastSpell(LIGHTNING_BOLT, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            /*if (FROST_SHOCK > 0 && !pTarget->HasAura(FROST_SHOCK, EFFECT_INDEX_0) && m_ai.CastSpell(FROST_SHOCK, *pTarget) == SPELL_CAST_OK)
+            /*if (FROST_SHOCK > 0 && !target.HasAura(FROST_SHOCK, EFFECT_INDEX_0) && m_ai.CastSpell(FROST_SHOCK, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;*/
-            /*if (CHAIN_LIGHTNING > 0 && m_ai.CastSpell(CHAIN_LIGHTNING, *pTarget) == SPELL_CAST_OK)
+            /*if (CHAIN_LIGHTNING > 0 && m_ai.CastSpell(CHAIN_LIGHTNING, target) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;*/
     }
 
     return RETURN_NO_ACTION_OK;
 } // end DoNextCombatManeuver
 
-CombatManeuverReturns PlayerbotShamanAI::DoNextCombatManeuverPVP(Unit* pTarget)
+CombatManeuverReturns PlayerbotShamanAI::DoNextCombatManeuverPVP(Unit& target)
 {
     DropTotems();
     CheckShields();
     UseCooldowns();
 
     Player* healTarget = (m_ai.GetScenarioType() == PlayerbotAI::SCENARIO_PVP_DUEL) ? GetHealTarget() : &m_bot;
-    if (HealPlayer(healTarget) & (RETURN_NO_ACTION_OK | RETURN_CONTINUE))
+    if (HealPlayer(healTarget ? *healTarget : m_bot) & (RETURN_NO_ACTION_OK | RETURN_CONTINUE))
         return RETURN_CONTINUE;
     if (m_ai.CastSpell(LIGHTNING_BOLT) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
 
-    return DoNextCombatManeuverPVE(pTarget); // TODO: bad idea perhaps, but better than the alternative
+    return DoNextCombatManeuverPVE(target); // TODO: bad idea perhaps, but better than the alternative
 }
 
-CombatManeuverReturns PlayerbotShamanAI::HealPlayer(Player* target)
+CombatManeuverReturns PlayerbotShamanAI::HealPlayer(Player& target)
 {
     CombatManeuverReturns r = PlayerbotClassAI::HealPlayer(target);
     if (r != RETURN_NO_ACTION_OK)
@@ -253,26 +255,26 @@ CombatManeuverReturns PlayerbotShamanAI::HealPlayer(Player* target)
             && m_bot.GetPlayerbotAI()->GetMovementOrder() != PlayerbotAI::MOVEMENT_STAY
             && !m_ai.In_Reach(target, HEALING_WAVE))
     {
-        m_bot.GetMotionMaster()->MoveFollow(target, 39.0f, m_bot.GetOrientation());
+        m_bot.GetMotionMaster()->MoveFollow(&target, 39.0f, m_bot.GetOrientation());
         return RETURN_CONTINUE;
     }
 
     // Everyone is healthy enough, return OK. MUST correlate to highest value below (should be last HP check)
-    if (target->GetHealthPercent() >= 80)
+    if (target.GetHealthPercent() >= 80)
         return RETURN_NO_ACTION_OK;
 
     // Technically the best rotation is CHAIN + LHW + LHW subbing in HW for trouble (bad mana efficiency)
-    if (target->GetHealthPercent() < 30 && HEALING_WAVE > 0 && m_ai.CastSpell(HEALING_WAVE, *target) == SPELL_CAST_OK)
+    if (target.GetHealthPercent() < 30 && HEALING_WAVE > 0 && m_ai.CastSpell(HEALING_WAVE, target) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
-    if (target->GetHealthPercent() < 50 && LESSER_HEALING_WAVE > 0 && m_ai.CastSpell(LESSER_HEALING_WAVE, *target) == SPELL_CAST_OK)
+    if (target.GetHealthPercent() < 50 && LESSER_HEALING_WAVE > 0 && m_ai.CastSpell(LESSER_HEALING_WAVE, target) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
-    if (target->GetHealthPercent() < 80 && CHAIN_HEAL > 0 && m_ai.CastSpell(CHAIN_HEAL, *target) == SPELL_CAST_OK)
+    if (target.GetHealthPercent() < 80 && CHAIN_HEAL > 0 && m_ai.CastSpell(CHAIN_HEAL, target) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
 
     return RETURN_NO_ACTION_UNKNOWN;
 } // end HealTarget
 
-CombatManeuverReturns PlayerbotShamanAI::ResurrectPlayer(Player* target)
+CombatManeuverReturns PlayerbotShamanAI::ResurrectPlayer(Player& target)
 {
     CombatManeuverReturns r = PlayerbotClassAI::ResurrectPlayer(target);
     if (r != RETURN_NO_ACTION_OK)
@@ -281,22 +283,22 @@ CombatManeuverReturns PlayerbotShamanAI::ResurrectPlayer(Player* target)
     if (m_ai.IsInCombat())     // Just in case as this was supposedly checked before calling this function
         return RETURN_NO_ACTION_ERROR;
 
-    if (ANCESTRAL_SPIRIT > 0 && m_ai.In_Reach(target, ANCESTRAL_SPIRIT) && m_ai.CastSpell(ANCESTRAL_SPIRIT, *target) == SPELL_CAST_OK)
+    if (ANCESTRAL_SPIRIT > 0 && m_ai.In_Reach(target, ANCESTRAL_SPIRIT) && m_ai.CastSpell(ANCESTRAL_SPIRIT, target) == SPELL_CAST_OK)
     {
         std::string msg = "Resurrecting ";
-        msg += target->GetName();
+        msg += target.GetName();
         m_bot.Say(msg, LANG_UNIVERSAL);
         return RETURN_CONTINUE;
     }
     return RETURN_NO_ACTION_ERROR; // not error per se - possibly just OOM
 }
 
-CombatManeuverReturns PlayerbotShamanAI::DispelPlayer(Player* /*target*/)
+CombatManeuverReturns PlayerbotShamanAI::FindAndDispelPlayer()
 {
     // Remove poison on group members
     if (Player* poisonedTarget = GetDispelTarget(DISPEL_POISON))
     {
-        CombatManeuverReturns r = PlayerbotClassAI::DispelPlayer(poisonedTarget);
+        CombatManeuverReturns r = PlayerbotClassAI::DispelPlayer(*poisonedTarget);
         if (r != RETURN_NO_ACTION_OK)
             return r;
 
@@ -307,7 +309,7 @@ CombatManeuverReturns PlayerbotShamanAI::DispelPlayer(Player* /*target*/)
     // Remove disease on group members
     if (Player* diseasedTarget = GetDispelTarget(DISPEL_DISEASE))
     {
-        CombatManeuverReturns r = PlayerbotClassAI::DispelPlayer(diseasedTarget);
+        CombatManeuverReturns r = PlayerbotClassAI::DispelPlayer(*diseasedTarget);
         if (r != RETURN_NO_ACTION_OK)
             return r;
 
@@ -371,7 +373,7 @@ void PlayerbotShamanAI::DropTotems()
 
     /*if (EARTH_ELEMENTAL_TOTEM > 0 && m_ai.CastSpell(EARTH_ELEMENTAL_TOTEM) == SPELL_CAST_OK)
         return RETURN_CONTINUE;*/
-    /*if (EARTHBIND_TOTEM > 0 && !pTarget->HasAura(EARTHBIND_TOTEM, EFFECT_INDEX_0) && !m_bot.HasAura(STRENGTH_OF_EARTH_TOTEM, EFFECT_INDEX_0) && m_ai.CastSpell(EARTHBIND_TOTEM) == SPELL_CAST_OK)
+    /*if (EARTHBIND_TOTEM > 0 && !target.HasAura(EARTHBIND_TOTEM, EFFECT_INDEX_0) && !m_bot.HasAura(STRENGTH_OF_EARTH_TOTEM, EFFECT_INDEX_0) && m_ai.CastSpell(EARTHBIND_TOTEM) == SPELL_CAST_OK)
         return RETURN_CONTINUE;*/
     /*if (FIRE_ELEMENTAL_TOTEM > 0 && m_ai.CastSpell(FIRE_ELEMENTAL_TOTEM) == SPELL_CAST_OK)
         return RETURN_CONTINUE;*/
@@ -383,9 +385,9 @@ void PlayerbotShamanAI::DropTotems()
         return RETURN_CONTINUE;*/
     /*if (MAGMA_TOTEM > 0 && (!m_bot.HasAura(TOTEM_OF_WRATH, EFFECT_INDEX_0)) && m_ai.CastSpell(MAGMA_TOTEM) == SPELL_CAST_OK)
         return RETURN_CONTINUE;*/
-    /*if (SEARING_TOTEM > 0 && !pTarget->HasAura(SEARING_TOTEM, EFFECT_INDEX_0) && !m_bot.HasAura(TOTEM_OF_WRATH, EFFECT_INDEX_0) && m_ai.CastSpell(SEARING_TOTEM) == SPELL_CAST_OK)
+    /*if (SEARING_TOTEM > 0 && !target.HasAura(SEARING_TOTEM, EFFECT_INDEX_0) && !m_bot.HasAura(TOTEM_OF_WRATH, EFFECT_INDEX_0) && m_ai.CastSpell(SEARING_TOTEM) == SPELL_CAST_OK)
         return RETURN_CONTINUE;*/
-    /*if (STONECLAW_TOTEM > 0 && m_ai.GetHealthPercent() < 51 && !pTarget->HasAura(STONECLAW_TOTEM, EFFECT_INDEX_0) && !pTarget->HasAura(EARTHBIND_TOTEM, EFFECT_INDEX_0) && !m_bot.HasAura(STRENGTH_OF_EARTH_TOTEM, EFFECT_INDEX_0) && m_ai.CastSpell(STONECLAW_TOTEM) == SPELL_CAST_OK)
+    /*if (STONECLAW_TOTEM > 0 && m_ai.GetHealthPercent() < 51 && !target.HasAura(STONECLAW_TOTEM, EFFECT_INDEX_0) && !target.HasAura(EARTHBIND_TOTEM, EFFECT_INDEX_0) && !m_bot.HasAura(STRENGTH_OF_EARTH_TOTEM, EFFECT_INDEX_0) && m_ai.CastSpell(STONECLAW_TOTEM) == SPELL_CAST_OK)
         return RETURN_CONTINUE;*/
     /*if (STONESKIN_TOTEM > 0 && !m_bot.HasAura(STONESKIN_TOTEM, EFFECT_INDEX_0) && !m_bot.HasAura(STRENGTH_OF_EARTH_TOTEM, EFFECT_INDEX_0) && m_ai.CastSpell(STONESKIN_TOTEM) == SPELL_CAST_OK)
         return RETURN_CONTINUE;*/
@@ -436,24 +438,26 @@ void PlayerbotShamanAI::DoNonCombatActions()
     if (!m_bot.IsAlive() || m_bot.IsInDuel()) return;
 
     // Dispel disease/poison
-    if (m_ai.HasDispelOrder() && DispelPlayer() & RETURN_CONTINUE)
+    if (m_ai.HasDispelOrder() && FindAndDispelPlayer() & RETURN_CONTINUE)
         return;
 
     // Revive
-    if (ResurrectPlayer(GetResurrectionTarget()) & RETURN_CONTINUE)
+    Player* const resurrectionTarget = GetResurrectionTarget();
+    if (resurrectionTarget && (ResurrectPlayer(*resurrectionTarget) & RETURN_CONTINUE))
         return;
 
     // Heal
     if (m_ai.IsHealer())
     {
-        if (HealPlayer(GetHealTarget()) & RETURN_CONTINUE)
+        Player* const healTarget = GetHealTarget();
+        if (HealPlayer(healTarget ? *healTarget : m_bot) & RETURN_CONTINUE)
             return;// RETURN_CONTINUE;
     }
     else
     {
         // Is this desirable? Debatable.
         // TODO: In a group/raid with a healer you'd want this bot to focus on DPS (it's not specced/geared for healing either)
-        if (HealPlayer(&m_bot) & RETURN_CONTINUE)
+        if (HealPlayer(m_bot) & RETURN_CONTINUE)
             return;// RETURN_CONTINUE;
     }
 

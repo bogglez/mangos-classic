@@ -65,8 +65,8 @@ class MANGOS_DLL_SPEC PlayerbotClassAI
         virtual ~PlayerbotClassAI();
 
         // all combat actions go here
-        virtual CombatManeuverReturns DoFirstCombatManeuver(Unit*);
-        virtual CombatManeuverReturns DoNextCombatManeuver(Unit*);
+        virtual CombatManeuverReturns DoFirstCombatManeuver(Unit& target);
+        virtual CombatManeuverReturns DoNextCombatManeuver(Unit& target);
         virtual bool CanPull() { return false; }
         virtual bool Pull(Unit& target) { return false; }
         virtual uint32 Neutralize(uint8 creatureType) { return 0; }
@@ -77,35 +77,36 @@ class MANGOS_DLL_SPEC PlayerbotClassAI
 
         // Utilities
         bool CastHoTOnTank();
-        JOB_TYPE GetBotJob(Player* target);
-        JOB_TYPE GetTargetJob(Player* target);
+        JOB_TYPE GetBotJob(Player& target);
+        JOB_TYPE GetTargetJob(Player& target);
         time_t GetWaitUntil() { return m_WaitUntil; }
         void SetWait(uint8 t) { m_WaitUntil = m_ai.CurrentTime() + t; }
         void ClearWait() { m_WaitUntil = 0; }
         //void SetWaitUntil(time_t t) { m_WaitUntil = t; }
 
     protected:
-        virtual CombatManeuverReturns DoFirstCombatManeuverPVE(Unit*);
-        virtual CombatManeuverReturns DoNextCombatManeuverPVE(Unit*);
-        virtual CombatManeuverReturns DoFirstCombatManeuverPVP(Unit*);
-        virtual CombatManeuverReturns DoNextCombatManeuverPVP(Unit*);
+        virtual CombatManeuverReturns DoFirstCombatManeuverPVE(Unit& target);
+        virtual CombatManeuverReturns DoNextCombatManeuverPVE(Unit& target);
+        virtual CombatManeuverReturns DoFirstCombatManeuverPVP(Unit& target);
+        virtual CombatManeuverReturns DoNextCombatManeuverPVP(Unit& target);
 
-        CombatManeuverReturns CastSpellNoRanged(uint32 nextAction, Unit* pTarget);
-        CombatManeuverReturns CastSpellWand(uint32 nextAction, Unit* pTarget, uint32 SHOOT);
-        virtual CombatManeuverReturns HealPlayer(Player* target);
-        virtual CombatManeuverReturns ResurrectPlayer(Player* target);
-        virtual CombatManeuverReturns DispelPlayer(Player* target);
-        CombatManeuverReturns Buff(bool (*BuffHelper)(PlayerbotAI*, uint32, Unit*), uint32 spellId, uint32 type = JOB_ALL, bool mustBeOOC = true);
+        CombatManeuverReturns CastSpellNoRanged(uint32 nextAction, Unit& target);
+        CombatManeuverReturns CastSpellWand(uint32 nextAction, Unit& target, uint32 SHOOT);
+        virtual CombatManeuverReturns HealPlayer(Player& target);
+        virtual CombatManeuverReturns ResurrectPlayer(Player& target);
+        virtual CombatManeuverReturns FindAndDispelPlayer();
+        CombatManeuverReturns DispelPlayer(Player& target);
+        CombatManeuverReturns Buff(bool (*BuffHelper)(PlayerbotAI*, uint32, Unit&), uint32 spellId, uint32 type = JOB_ALL, bool mustBeOOC = true);
         bool FindTargetAndHeal();
         bool NeedGroupBuff(uint32 groupBuffSpellId, uint32 singleBuffSpellId);
         Player* GetHealTarget(JOB_TYPE type = JOB_ALL, bool onlyPickFromSameGroup = false);
         Player* GetDispelTarget(DispelType dispelType, JOB_TYPE type = JOB_ALL, bool bMustBeOOC = false);
         Player* GetResurrectionTarget(JOB_TYPE type = JOB_ALL, bool bMustBeOOC = true);
 
-        bool FleeFromAoEIfCan(uint32 spellId, Unit* pTarget);
-        bool FleeFromTrapGOIfCan(uint32 goEntry, Unit* pTarget);
-        bool FleeFromNpcWithAuraIfCan(uint32 NpcEntry, uint32 spellId, Unit* pTarget);
-        bool FleeFromPointIfCan(uint32 radius, Unit* pTarget, float x0, float y0, float z0, float forcedAngle = 0.0f);
+        bool FleeFromAoEIfCan(uint32 spellId, Unit& target);
+        bool FleeFromTrapGOIfCan(uint32 goEntry, Unit& target);
+        bool FleeFromNpcWithAuraIfCan(uint32 NpcEntry, uint32 spellId, Unit& target);
+        bool FleeFromPointIfCan(uint32 radius, Unit& target, float x0, float y0, float z0, float forcedAngle = 0.0f);
 
         // These values are used in GetHealTarget and can be overridden per class (to accomodate healing spell health checks)
         uint8 m_MinHealthPercentTank;

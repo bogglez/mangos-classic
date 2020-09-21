@@ -110,8 +110,8 @@ class MANGOS_DLL_SPEC PlayerbotShamanAI : PlayerbotClassAI
         virtual ~PlayerbotShamanAI();
 
         // all combat actions go here
-        CombatManeuverReturns DoFirstCombatManeuver(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuver(Unit* pTarget) override;
+        CombatManeuverReturns DoFirstCombatManeuver(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuver(Unit& target) override;
 
         // all non combat actions go here, ex buffs, heals, rezzes
         void DoNonCombatActions() override;
@@ -120,17 +120,17 @@ class MANGOS_DLL_SPEC PlayerbotShamanAI : PlayerbotClassAI
         bool CastHoTOnTank();
 
     private:
-        CombatManeuverReturns DoFirstCombatManeuverPVE(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuverPVE(Unit* pTarget) override;
-        CombatManeuverReturns DoFirstCombatManeuverPVP(Unit* pTarget) override;
-        CombatManeuverReturns DoNextCombatManeuverPVP(Unit* pTarget) override;
+        CombatManeuverReturns DoFirstCombatManeuverPVE(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuverPVE(Unit& target) override;
+        CombatManeuverReturns DoFirstCombatManeuverPVP(Unit& target) override;
+        CombatManeuverReturns DoNextCombatManeuverPVP(Unit& target) override;
 
         // Heals the target based off its hps
-        CombatManeuverReturns HealPlayer(Player* target) override;
+        CombatManeuverReturns HealPlayer(Player& target) override;
         // Resurrects the target
-        CombatManeuverReturns ResurrectPlayer(Player* target) override;
+        CombatManeuverReturns ResurrectPlayer(Player& target) override;
         // Dispel disease or negative magic effects from an internally selected target
-        CombatManeuverReturns DispelPlayer(Player* target = nullptr);
+        CombatManeuverReturns FindAndDispelPlayer() override;
 
         void DropTotems();
         void CheckShields();
